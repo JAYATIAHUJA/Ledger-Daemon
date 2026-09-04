@@ -14,7 +14,16 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (28 tests, ~10 s).
+One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (46 tests, ~4 s).
+
+```bash
+python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
+python -m ledger_daemon ablate      # 5-config ablation ladder + risk-coverage curve
+python -m ledger_daemon crosscheck  # independent splink cross-check of the matcher
+python -m ledger_daemon prove       # watch the policy engine reject an unhandled verdict
+python -m ledger_daemon agent-eval  # score the proposal layer against ground truth
+python -m ledger_daemon mcp         # run as an MCP server over stdio
+```
 
 ```
 LEDGER DAEMON — EVALUATION REPORT      seed=42  n=500
@@ -107,6 +116,25 @@ R3 and R4 are flat on this seed and we publish that anyway: F-S scores are so we
 
 **"Where's the AI?"** Confined and *measured*. `python -m ledger_daemon agent-eval` scores the proposal layer against ground truth on the exception list; with no model installed, the deterministic fallback's honest abstention already agrees with ground truth on 14/16 exceptions — the bar any local model (set `LEDGER_DAEMON_LLM=ollama`) has to beat before R7 lets a single proposal matter. LLMs are kept off the decision path because their confidence scores are poorly calibrated, which would break the conformal and cost-sensitive layers — that's an allocation argument, not a limitation.
 
+**"You got one lucky seed."** `python -m ledger_daemon sweep` re-runs generate → calibrate → reconcile → gate → score on 20 worlds the thresholds were never tuned against, re-deriving q_hat per seed from that seed's own calibration batch so no seed can be rescued by a threshold chosen after seeing it:
+
+| metric | min | median | max |
+|---|---:|---:|---:|
+| double-chase prevention | 100.0% | 100.0% | 100.0% |
+| false-hold rate | 4.0% | 4.0% | 6.0% |
+| verdict match rate | 98.0% | 99.3% | 99.8% |
+| ₹ wrongly chased | ₹0.00 | ₹0.00 | ₹0.00 |
+
+**20/20 seeds at 100% double-chase prevention and ₹0 wrongly chased.** What this does *not* show: every world comes from the same generator, so the sweep bounds sampling luck, not model risk — the authored-generator limitation below stands in full. The calibration and evaluation seeds are asserted disjoint by `assert_disjoint_seeds()`, so a refactor that collapses them fails loudly instead of quietly reporting an inflated match rate.
+
+**"What happens when a new kind of settlement appears?"** It cannot silently inherit a default. `VERDICT_DISPOSITION` declares one disposition per verdict with no catch-all, `_assert_exhaustive()` raises `ImportError` at module load if a verdict is unmapped or disagrees with `CHASEABLE_VERDICTS`, and the dispatch ends in `typing.assert_never` so a static checker rejects an unhandled branch. Adding a way for money to arrive without deciding what collections does about it is a load-time error on the developer's machine, not a production incident. Watch it fire:
+
+```bash
+python -m ledger_daemon prove
+```
+
+It injects a tenth verdict into the live enum and shows the policy engine refusing to load. This is the layer that turns the 9-verdict taxonomy from documentation into a constraint.
+
 **"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught a real divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
 
 ## MCP surface (6 tools)
@@ -137,4 +165,4 @@ Set `RZP_TEST_KEY_ID` / `RZP_TEST_KEY_SECRET` and the executor creates one real 
 - The recovery-value figures use a documented 0.6 recovery-rate assumption; the per-incident cost of wrongly chasing a paying customer is not publicly published anywhere, so the ₹800 action-cost constant is an assumption, labelled as such.
 - Bank feeds are batch in reality; R2 tolerates that by holding, not chasing, until coverage exists.
 
-Every number above is regenerated from source: `python -m ledger_daemon evaluate`, `ablate`, `crosscheck` and `agent-eval` reproduce the full evaluation on seed 42.
+Every number above is regenerated from source: `demo`, `ablate`, `sweep`, `crosscheck` and `agent-eval` reproduce the full evaluation — seed 42 for the headline, seeds 100-119 for the robustness table.
