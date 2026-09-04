@@ -99,6 +99,11 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_prove(args) -> int:
+    from .prove import run
+    return run()
+
+
 def cmd_sweep(args) -> int:
     from .robustness import render, run_sweep
 
@@ -302,6 +307,9 @@ def main(argv=None) -> int:
     d.add_argument("--profile", choices=["clean", "stress"], default="clean",
                    help="stress = typo'd/truncated narrations + amount-collision decoys")
     d.set_defaults(fn=cmd_demo)
+
+    pv = sub.add_parser("prove", help="demonstrate the verdict-exhaustiveness guard firing")
+    pv.set_defaults(fn=cmd_prove)
 
     sw = sub.add_parser("sweep", help="re-run the whole pipeline on N unseen seeds")
     sw.add_argument("--seeds", type=int, default=20, help="how many seeds to sweep")
