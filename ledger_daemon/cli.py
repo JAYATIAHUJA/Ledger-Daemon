@@ -12,7 +12,7 @@ import time
 
 from . import agent, policy
 from .datagen import generate, load_batch
-from .evaluate import evaluate, render_exceptions, render_report, run_ledger_daemon
+from .evaluate import EvalReport, evaluate, render_exceptions, render_report, run_ledger_daemon
 from .executor import Executor, default_adapter
 from .models import Verdict
 from .money import rupees_str
@@ -28,6 +28,27 @@ def _paths(root: str) -> dict:
         "db": os.path.join(root, "ledger.sqlite3"),
         "drafts": os.path.join(root, "drafts"),
     }
+
+
+def write_baseline_contract(path: str, report: EvalReport,
+                            elapsed_s: float, profile: str) -> None:
+    """Persist the measured demo contract as deterministic, machine-readable JSON."""
+    payload = {
+        "dataset": {
+            "kind": "synthetic",
+            "profile": profile,
+            "seed": report.seed,
+            "n": report.n,
+        },
+        "dcpr": report.dcpr,
+        "elapsed_ms": round(elapsed_s * 1000),
+        "false_hold_rate": report.false_hold_rate,
+        "match_rate": report.match_rate,
+        "wrongly_chased_paise": report.wrong_paise["LD"],
+    }
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, sort_keys=True, indent=2)
+        fh.write("\n")
 
 
 def cmd_demo(args) -> int:
@@ -85,6 +106,12 @@ def cmd_demo(args) -> int:
     print("[6/6] evaluation harness ...")
     report = evaluate(args.seed, orders, captures, result, truth)
     os.makedirs(p["eval_dir"], exist_ok=True)
+    write_baseline_contract(
+        os.path.join(p["eval_dir"], "baseline-contract.json"),
+        report,
+        time.perf_counter() - t0,
+        profile,
+    )
     suffix = "" if profile == "clean" else f"-{profile}"
     body = render_report(report, date=f"profile={profile}" if profile != "clean" else "")
     with open(os.path.join(p["eval_dir"], f"results{suffix}.md"), "w", encoding="utf-8") as fh:

@@ -196,7 +196,7 @@ def render_report(r: EvalReport, date: str = "") -> str:
         f"  B2 recon, no gate ....... {rupees_str(r.wrong_paise['B2']):>15}  ({r.wrong_counts['B2']} customers)",
         f"  Ledger Daemon ........... {rupees_str(r.wrong_paise['LD']):>15}  ({r.wrong_counts['LD']} customers)",
         "",
-        "---- Recovery (Track 03) " + "-" * 38,
+        "---- Downstream Control Demonstration: Why Correct Reconciliation Matters " + "-" * 8,
         f"Actions emitted ........................... {r.actions_emitted}",
         f"Net recoverable (0.6 x chased) ............ {rupees_str(r.net_recovered_paise)}",
         f"Customers wrongly contacted ............... {r.ld_wrong_contacts}  (B0: {r.b0_wrong_contacts})",
