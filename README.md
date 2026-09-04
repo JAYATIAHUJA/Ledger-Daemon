@@ -2,8 +2,6 @@
 
 **100.0% of already-paid orders that a naive dunning agent would have chased were blocked — with a 4.0% false-hold rate on genuinely unpaid orders, and ₹0 wrongly chased.** (seed 42, n = 500, offline, < 5 s end to end.)
 
-> *"I recorded payment on an outstanding invoice but the system still send out a payment reminder… this will get my clients upset."* — Zoho Invoice user
-
 **Thesis: you cannot autonomously chase money until you can prove it hasn't already arrived.**
 
 Ledger Daemon is a local-first, headless MCP server that performs deterministic three-way reconciliation (payment gateway × bank statement × merchant books) and uses the result as a **hard precondition** on any autonomous revenue-recovery action. Every mainstream dunning tool fires on invoice/gateway status; none makes cross-source reconciliation a precondition to chase. That gap — settlement lag, late authorisation, out-of-band NEFT/UPI — is where paying customers get chased, and "collecting a debt not owed" has been the single largest US debt-collection complaint category every year since 2013.
@@ -148,7 +146,7 @@ audit(order_id)       -> full append-only trail
 report()              -> the evaluation block
 ```
 
-`propose_recovery()` and `approve()` are separate calls — no single tool call may move money. Run with `python -m ledger_daemon mcp` (uses the official `mcp` SDK if installed, else a built-in stdio fallback). Claude Desktop config:
+`propose_recovery()` and `approve()` are separate calls — no single tool call may move money. Run with `python -m ledger_daemon mcp` (uses the official `mcp` SDK if installed, else a built-in stdio fallback). MCP client config:
 
 ```json
 {"mcpServers": {"ledger-daemon": {"command": "python", "args": ["-m", "ledger_daemon", "mcp", "--root", "out"], "cwd": "<repo path>"}}}

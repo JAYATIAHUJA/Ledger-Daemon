@@ -53,7 +53,7 @@ Executor.execute()        sha256 event_id PK, WAL SQLite, append-only audit
 
 ## Why headless, why local
 
-The consumer is an AI agent (Claude Desktop / Cursor) calling MCP tools, and a
+The consumer is an AI agent calling MCP tools over stdio, and a
 merchant analyst running one CLI command. All data stays on local disk
 (SQLite + CSV); nothing is transmitted; the only optional network call is one
 Razorpay test-mode payment link. That is the correct trust posture for a
