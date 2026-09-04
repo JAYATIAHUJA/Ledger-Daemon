@@ -12,7 +12,7 @@ from typing import Iterable
 from .source_contracts import canonical_json, sha256_hex
 
 
-CERTIFICATE_VERSION = "1"
+CERTIFICATE_VERSION = "2"
 ENGINE_ID = "ledger-daemon-recon-v1"
 
 
@@ -62,6 +62,10 @@ class ProofCertificate:
     rule_ids: tuple[str, ...]
     config_hash: str
     calibration_id: str
+    automation_path: str
+    score_ppm: int
+    risk_calibration_id: str
+    risk_authorized: bool
     generated_at: str
     proof_hash: str
 
@@ -79,6 +83,10 @@ class ProofCertificate:
         config_hash: str,
         calibration_id: str,
         generated_at: str,
+        automation_path: str = "manual",
+        score_ppm: int = 0,
+        risk_calibration_id: str = "",
+        risk_authorized: bool = False,
     ) -> "ProofCertificate":
         facts = cls(
             version=CERTIFICATE_VERSION,
@@ -91,6 +99,10 @@ class ProofCertificate:
             rule_ids=tuple(rule_ids),
             config_hash=config_hash,
             calibration_id=calibration_id,
+            automation_path=automation_path,
+            score_ppm=score_ppm,
+            risk_calibration_id=risk_calibration_id,
+            risk_authorized=risk_authorized,
             generated_at=generated_at,
             proof_hash="",
         )
@@ -99,13 +111,17 @@ class ProofCertificate:
     def _payload(self) -> dict[str, object]:
         return {
             "amount_terms": [term.to_dict() for term in self.amount_terms],
+            "automation_path": self.automation_path,
             "calibration_id": self.calibration_id,
             "config_hash": self.config_hash,
             "delta_due_paise": self.delta_due_paise,
             "generated_at": self.generated_at,
             "money_received_paise": self.money_received_paise,
             "order_id": self.order_id,
+            "risk_authorized": self.risk_authorized,
+            "risk_calibration_id": self.risk_calibration_id,
             "rule_ids": list(self.rule_ids),
+            "score_ppm": self.score_ppm,
             "source_hashes": dict(self.source_hashes),
             "verdict": self.verdict,
             "version": self.version,
@@ -123,9 +139,10 @@ class ProofCertificate:
         if not isinstance(value, dict):
             raise ValueError("certificate must be a JSON object")
         expected = {
-            "amount_terms", "calibration_id", "config_hash", "delta_due_paise",
+            "amount_terms", "automation_path", "calibration_id", "config_hash", "delta_due_paise",
             "generated_at", "money_received_paise", "order_id", "proof_hash",
-            "rule_ids", "source_hashes", "verdict", "version",
+            "risk_authorized", "risk_calibration_id", "rule_ids", "score_ppm",
+            "source_hashes", "verdict", "version",
         }
         if set(value) != expected:
             raise ValueError("invalid certificate schema")
@@ -134,14 +151,17 @@ class ProofCertificate:
         if not isinstance(value["amount_terms"], list) or not isinstance(value["rule_ids"], list):
             raise ValueError("amount_terms and rule_ids must be arrays")
         if any(type(value[field]) is not int
-               for field in ("money_received_paise", "delta_due_paise")):
+               for field in ("money_received_paise", "delta_due_paise", "score_ppm")):
             raise ValueError("certificate money must use integer paise")
         string_fields = {
-            "calibration_id", "config_hash", "generated_at", "order_id",
+            "automation_path", "calibration_id", "config_hash", "generated_at", "order_id",
             "proof_hash", "verdict", "version",
+            "risk_calibration_id",
         }
         if any(not isinstance(value[field], str) for field in string_fields):
             raise ValueError("certificate identifiers must be strings")
+        if type(value["risk_authorized"]) is not bool:
+            raise ValueError("risk_authorized must be bool")
         if any(not isinstance(key, str) or not isinstance(item, str)
                for key, item in value["source_hashes"].items()):
             raise ValueError("source hashes must map string identifiers to string digests")
@@ -160,6 +180,10 @@ class ProofCertificate:
             rule_ids=tuple(value["rule_ids"]),
             config_hash=value["config_hash"],
             calibration_id=value["calibration_id"],
+            automation_path=value["automation_path"],
+            score_ppm=value["score_ppm"],
+            risk_calibration_id=value["risk_calibration_id"],
+            risk_authorized=value["risk_authorized"],
             generated_at=value["generated_at"],
             proof_hash=value["proof_hash"],
         )
@@ -336,6 +360,10 @@ def _build_certificate(order: object, verdict: object, source_hashes: dict[str, 
         rule_ids=(f"RECON.{verdict.evidence.pass_used}", f"VERDICT.{verdict.verdict.value}"),
         config_hash=config_hash,
         calibration_id=calibration_id,
+        automation_path=verdict.evidence.automation_path,
+        score_ppm=verdict.evidence.score_ppm,
+        risk_calibration_id=verdict.evidence.risk_calibration_id,
+        risk_authorized=verdict.evidence.risk_authorized,
         generated_at=generated_at,
     )
 

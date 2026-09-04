@@ -17,7 +17,7 @@ def _order():
 def test_non_chaseable_never_reaches_allow():
     o = _order()
     for verdict in Verdict:
-        v = OrderVerdict("ORD-1", verdict, [], Evidence("test"))
+        v = OrderVerdict("ORD-1", verdict, [], Evidence("test", automation_path="exact"))
         d = policy.evaluate(o, v, "CREATE_PAYMENT_LINK", attempts_so_far=0, contacts_7d=0)
         if verdict in CHASEABLE_VERDICTS:
             assert d.outcome == policy.ALLOW, verdict

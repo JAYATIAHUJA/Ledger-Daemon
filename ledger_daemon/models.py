@@ -78,6 +78,22 @@ class Evidence:
     source_rows: list[str] = field(default_factory=list)
     detail: str = ""
     weight_waterfall: list[tuple[str, str]] = field(default_factory=list)  # (component, contribution)
+    # Automation provenance is durable verdict evidence. Deterministic proofs
+    # need no calibration; fuzzy scores do.
+    automation_path: str = "manual"       # exact | probabilistic | manual
+    risk_calibration_id: str = ""
+    risk_authorized: bool = False
+    score_ppm: int = 0                     # persisted score; never a float
+
+    def __post_init__(self) -> None:
+        if self.automation_path not in {"exact", "probabilistic", "manual"}:
+            raise ValueError("automation_path must be exact, probabilistic, or manual")
+        if type(self.risk_calibration_id) is not str:
+            raise TypeError("risk_calibration_id must be str")
+        if type(self.risk_authorized) is not bool:
+            raise TypeError("risk_authorized must be bool")
+        if type(self.score_ppm) is not int or not 0 <= self.score_ppm <= 1_000_000:
+            raise ValueError("score_ppm must be an integer in 0..1000000")
 
 
 @dataclass

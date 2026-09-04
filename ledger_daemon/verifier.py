@@ -25,6 +25,7 @@ _VERDICTS = frozenset({
 })
 _PASSES = frozenset({
     "pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id", "pass4_fuzzy",
+    "pass4_rejected",
     "gateway_status", "net_arithmetic", "exhausted", "none",
 })
 _ALLOWED_RULES = frozenset(
@@ -38,6 +39,7 @@ _RULE_VERDICTS = {
     "pass4_fuzzy": frozenset({
         "paid_out_of_band", "paid_net_of_tds", "refunded_then_repaid", "ambiguous",
     }),
+    "pass4_rejected": frozenset({"genuinely_unpaid"}),
     "gateway_status": frozenset({"chargeback_open", "failed_not_debited"}),
     "net_arithmetic": frozenset({"ambiguous"}),
     "exhausted": frozenset({"genuinely_unpaid"}),
@@ -101,6 +103,18 @@ def _verify_certificate(
         reject("UNSUPPORTED_VERSION")
     if sha256_hex(certificate._payload()) != certificate.proof_hash:
         reject("PROOF_HASH_MISMATCH")
+    if certificate.automation_path not in {"exact", "probabilistic", "manual"}:
+        reject("RISK_PROVENANCE_INVALID")
+    if type(certificate.score_ppm) is not int or not 0 <= certificate.score_ppm <= 1_000_000:
+        reject("RISK_PROVENANCE_INVALID")
+    if type(certificate.risk_calibration_id) is not str or type(certificate.risk_authorized) is not bool:
+        reject("RISK_PROVENANCE_INVALID")
+    elif certificate.automation_path == "probabilistic" and (
+            certificate.risk_authorized and not certificate.risk_calibration_id):
+        reject("RISK_PROVENANCE_INVALID")
+    elif certificate.automation_path in {"exact", "manual"} and (
+            certificate.risk_calibration_id or certificate.score_ppm != 0):
+        reject("RISK_PROVENANCE_INVALID")
 
     indexed: dict[str, dict[str, object]] = {}
     duplicates: set[str] = set()
@@ -337,6 +351,21 @@ def _verify_certificate(
                     or not any(row.get("status") == "refund" for row in full_captures)
                     or net != 0):
                 reject("REFUND_EVIDENCE_MISMATCH")
+    elif recon_rule == "pass4_rejected":
+        if (certificate.automation_path != "probabilistic"
+                or certificate.risk_authorized):
+            reject("RISK_PROVENANCE_INVALID")
+        if not claimed_credits:
+            reject("EVIDENCE_SHAPE_MISMATCH")
+        elif type(invoice) is not int:
+            reject("EVIDENCE_AMOUNT_MISMATCH")
+        else:
+            possible_amounts = {invoice} | {
+                invoice - (invoice * rate // 10_000) for rate in (100, 200, 1_000)
+            }
+            if any(credit.get("amount_paise") not in possible_amounts
+                   for credit in claimed_credits):
+                reject("EVIDENCE_AMOUNT_MISMATCH")
     elif recon_rule == "gateway_status":
         related_statuses = {
             row.get("status") for row in claimed_captures

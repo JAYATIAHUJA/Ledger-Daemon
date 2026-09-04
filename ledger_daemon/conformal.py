@@ -17,9 +17,20 @@ trivially; in production you would re-calibrate on a rolling window.
 from __future__ import annotations
 
 import math
+from decimal import Decimal, ROUND_HALF_UP
 
 DEFAULT_ALPHA = 0.01
 FALLBACK_Q_HAT = 0.05  # used only when no calibration set exists; reported as such
+SCORE_PPM = 1_000_000
+
+
+def probability_to_ppm(probability: float) -> int:
+    """Persist a probability score as integer parts-per-million, never a float."""
+    if type(probability) not in (int, float):
+        raise TypeError("probability must be numeric")
+    if not math.isfinite(probability) or not 0.0 <= probability <= 1.0:
+        raise ValueError("probability must be finite and in 0..1")
+    return int((Decimal(str(probability)) * SCORE_PPM).to_integral_value(rounding=ROUND_HALF_UP))
 
 
 def conformal_threshold(cal_true_match_probs: list[float], alpha: float = DEFAULT_ALPHA) -> float:

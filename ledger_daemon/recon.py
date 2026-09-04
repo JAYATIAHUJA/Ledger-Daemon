@@ -24,6 +24,7 @@ from .fs import FSModel, _day_delta, p_match
 from .models import BankTxn, Evidence, GatewayCapture, Order, OrderVerdict, Verdict
 from .money import STATUTORY_TDS_RATES_BP, add, pct_bp, sub, tds_rate_bp
 from .narration import parse
+from .risk_control import RiskCalibration, risk_authorized
 
 TIE_MARGIN_POINTS = 5.0
 MAX_COMPONENT_EDGES = 64
@@ -40,6 +41,7 @@ class ReconConfig:
     dup_utr_check: bool = True
     use_conformal: bool = True    # False: hard P(match) >= 0.5 cut
     use_cost_floor: bool = True
+    risk_calibration: RiskCalibration | None = None
 
 
 FULL = ReconConfig()
@@ -293,7 +295,8 @@ def _resolve(o: Order, caps: list[GatewayCapture],
     # chargeback trumps everything: freeze, escalate
     cb = [c for c in caps if c.status == "chargeback_open"]
     if cb:
-        ev = Evidence("gateway_status", [c.payment_id for c in cb], "chargeback open on gateway")
+        ev = Evidence("gateway_status", [c.payment_id for c in cb], "chargeback open on gateway",
+                      automation_path="exact", risk_authorized=True)
         return mk(Verdict.CHARGEBACK_OPEN, ev, money_received_paise=o.amount_paise,
                   reason="disputed funds — freeze and escalate, never dun")
 
@@ -311,7 +314,7 @@ def _resolve(o: Order, caps: list[GatewayCapture],
             refs = [c.payment_id for c in captured + refunds] + [credit.txn_id]
             detail = (f"settlement {sid}: sum(net) = {credit.amount_paise} paise "
                       f"= bank credit {credit.txn_id} (T+{delta})")
-            ev = Evidence(used_pass, refs, detail)
+            ev = Evidence(used_pass, refs, detail, automation_path="exact", risk_authorized=True)
             if refunds:
                 refunded = 0
                 for r in refunds:
@@ -333,18 +336,35 @@ def _resolve(o: Order, caps: list[GatewayCapture],
 
     if failed and not captured and not refunds:
         ev = Evidence("gateway_status", [c.payment_id for c in failed],
-                      "failed at gateway, no bank debit")
+                      "failed at gateway, no bank debit",
+                      automation_path="exact", risk_authorized=True)
         return mk(Verdict.FAILED_NOT_DEBITED, ev,
                   reason="payment failed and was never debited — retry, do not dun")
 
     # ---- fuzzy path: no gateway evidence (or refund-net-zero looking for repayment) ----
     chosen, tie = assignment.get(o.order_id, (None, False))
+    probabilistic_evidence: Evidence | None = None
     cands = edges.get(o.order_id, [])
     if tie:
         ev = Evidence("pass4_fuzzy", [t for t, _, _ in cands],
                       f"{len(cands)} candidate credits within {TIE_MARGIN_POINTS} weight points")
         return mk(Verdict.AMBIGUOUS, ev,
                   reason="competing bank credits cannot be separated — escalate, never guess")
+    if chosen is None and cands:
+        # A scored, amount-compatible candidate was considered and rejected by
+        # the global assignment. That is not an exact absence-of-payment proof.
+        _, strongest_weight, strongest_waterfall = max(cands, key=lambda item: item[1])
+        probability = (0.99 if strongest_weight >= 82.0 else 0.0) if config.simple_scores else p_match(strongest_weight)
+        score_ppm = cf.probability_to_ppm(probability)
+        calibration = config.risk_calibration
+        probabilistic_evidence = Evidence(
+            "pass4_rejected", [txn_id for txn_id, _, _ in cands],
+            "amount-compatible candidates rejected by global assignment", strongest_waterfall,
+            automation_path="probabilistic",
+            risk_calibration_id=calibration.calibration_id if calibration else "",
+            risk_authorized=False,
+            score_ppm=score_ppm,
+        )
     if chosen is not None:
         b = txn_by_id[chosen]
         w, waterfall = next((wt, wf) for t, wt, wf in cands if t == chosen)
@@ -366,8 +386,18 @@ def _resolve(o: Order, caps: list[GatewayCapture],
                 floor = cost_sensitive_floor(o.amount_paise)
                 if decision == "MATCH" and p < floor:
                     decision = "AMBIGUOUS"
-        ev = Evidence("pass4_fuzzy", [b.txn_id],
-                      f"credit {b.txn_id} '{b.narration[:60]}' weight {w:+.2f}", waterfall)
+        score_ppm = cf.probability_to_ppm(p)
+        calibration = config.risk_calibration
+        ev = Evidence(
+            "pass4_fuzzy", [b.txn_id],
+            f"credit {b.txn_id} '{b.narration[:60]}' weight {w:+.2f}", waterfall,
+            automation_path="probabilistic",
+            risk_calibration_id=calibration.calibration_id if calibration else "",
+            risk_authorized=(risk_authorized(score_ppm, o.amount_paise, calibration)
+                             if calibration else False),
+            score_ppm=score_ppm,
+        )
+        probabilistic_evidence = ev
         if decision == "MATCH":
             rate = None if is_refund_net_zero else tds_rate_bp(o.amount_paise, b.amount_paise)
             if rate is not None:
@@ -397,7 +427,10 @@ def _resolve(o: Order, caps: list[GatewayCapture],
                   reason="refunded in full; repayment not provable from bank feed")
 
     covered = _day_delta(coverage_end, o.due_date) <= -3
-    ev = Evidence("exhausted", [], "no gateway capture, no bank credit matches")
+    ev = probabilistic_evidence or Evidence(
+        "exhausted", [], "no gateway capture, no bank credit matches",
+        automation_path="exact", risk_authorized=True,
+    )
     return mk(Verdict.GENUINELY_UNPAID, ev, bank_coverage_ok=covered,
               reason="no evidence of money received on any of the three sources"
                      + ("" if covered else " — but bank feed does not yet cover due_date+3"))

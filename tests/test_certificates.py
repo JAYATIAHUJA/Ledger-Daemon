@@ -5,6 +5,7 @@ import pytest
 
 from ledger_daemon.cli import main
 from ledger_daemon.datagen import generate, load_batch
+from ledger_daemon.models import Evidence, Order, OrderVerdict, Verdict
 from ledger_daemon.recon import FULL, reconcile
 
 
@@ -83,6 +84,44 @@ def test_certificate_parser_rejects_float_money_and_unknown_fields():
         certificates.ProofCertificate.from_json(json.dumps({**valid, "money_received_paise": 0.0}))
     with pytest.raises(ValueError, match="schema"):
         certificates.ProofCertificate.from_json(json.dumps({**valid, "surprise": True}))
+
+
+def test_certificate_hash_binds_risk_provenance_separately_from_conformal_calibration():
+    certificates = importlib.import_module("ledger_daemon.certificates")
+    common = dict(
+        order_id="ORD-1", verdict="genuinely_unpaid", source_hashes={"ORD-1": "a" * 64},
+        amount_terms=(), money_received_paise=0, delta_due_paise=0,
+        rule_ids=("RECON.exhausted", "VERDICT.genuinely_unpaid"), config_hash="c" * 64,
+        calibration_id="conformal:cal-1", generated_at="2026-09-05T00:00:00Z",
+        automation_path="probabilistic", score_ppm=900_000,
+        risk_calibration_id="risk:cal-1",
+    )
+    authorized = certificates.ProofCertificate.create(**common, risk_authorized=True)
+    unauthorized = certificates.ProofCertificate.create(**common, risk_authorized=False)
+
+    assert authorized.proof_hash != unauthorized.proof_hash
+    assert authorized.calibration_id == "conformal:cal-1"
+    assert authorized.risk_calibration_id == "risk:cal-1"
+
+
+def test_builder_copies_verdict_risk_provenance_into_certificate():
+    certificates = importlib.import_module("ledger_daemon.certificates")
+    order = Order("ORD-1", "INV-1", "CUS-1", "Ada", 10_000, "2026-09-01", "unpaid", "gateway")
+    verdict = OrderVerdict(
+        "ORD-1", Verdict.GENUINELY_UNPAID, [],
+        Evidence("exhausted", automation_path="exact", risk_authorized=True),
+    )
+    rows = certificates.source_rows([order], [], [])
+    hashes = certificates.source_hash_map(rows)
+
+    certificate = certificates.build_certificate(
+        order, verdict, hashes, "c" * 64, "conformal:cal-1", rows=rows,
+    )
+
+    assert certificate.automation_path == "exact"
+    assert certificate.score_ppm == 0
+    assert certificate.risk_calibration_id == ""
+    assert certificate.risk_authorized is True
 
 
 def test_generated_batch_emits_one_independently_verifiable_proof_per_order(tmp_path):

@@ -118,6 +118,22 @@ def test_direct_tampering_is_detected(proof_world, change, expected_error):
     assert expected_error in _verify(attacked, rows).error_codes
 
 
+def test_rehashed_incoherent_probabilistic_risk_provenance_is_rejected(proof_world):
+    certificates = importlib.import_module("ledger_daemon.certificates")
+    _, rows, common = proof_world
+    attacked = certificates.ProofCertificate.create(
+        **{
+            **common,
+            "automation_path": "probabilistic",
+            "score_ppm": 900_000,
+            "risk_calibration_id": "",
+            "risk_authorized": True,
+        }
+    )
+
+    assert "RISK_PROVENANCE_INVALID" in _verify(attacked, rows).error_codes
+
+
 def test_rehashed_one_paise_attack_fails_source_and_equation_checks(proof_world):
     certificates = importlib.import_module("ledger_daemon.certificates")
     certificate, rows, common = proof_world

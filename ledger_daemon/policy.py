@@ -164,6 +164,18 @@ def evaluate(order: Order, verdict: OrderVerdict, action_type: str,
                         f"LLM confidence {llm_confidence:.2f} < {LLM_MIN_CONFIDENCE}")
 
     if action_type in ("CREATE_PAYMENT_LINK", "DRAFT_REMINDER", "AUTO_CHARGE"):
+        # This gate applies only where this recognized action would otherwise
+        # receive ALLOW, preserving the stronger earlier denials/escalations.
+        exact_proof = verdict.evidence.automation_path == "exact"
+        authorized_probability = (
+            verdict.evidence.automation_path == "probabilistic"
+            and verdict.evidence.risk_authorized is True
+            and type(verdict.evidence.risk_calibration_id) is str
+            and bool(verdict.evidence.risk_calibration_id)
+        )
+        if not (exact_proof or authorized_probability):
+            return Decision(HOLD, "R_RISK_BUDGET",
+                            "recognized action lacks exact proof or authorized rupee-risk calibration")
         return Decision(ALLOW, "R_ALLOW", f"all gates passed for {action_type}")
 
     return Decision(DENY, "R_DEFAULT_DENY", f"unhandled action type {action_type}")  # FR-5.2
