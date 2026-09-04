@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+out/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

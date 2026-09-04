@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ledger-daemon"
+version = "1.0.0"
+description = "Never chase money you already have: deterministic 3-way reconciliation as a hard precondition on autonomous revenue recovery."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []  # stdlib only — offline by design
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+dev = ["pytest>=8"]
+validate = ["splink>=4.0", "rapidfuzz>=3.0"]  # independent cross-check + accel; never load-bearing
+
+[project.scripts]
+ledger-daemon = "ledger_daemon.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ledger_daemon*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
