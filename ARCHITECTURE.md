@@ -23,6 +23,11 @@ reconcile(orders, captures, bank, q_hat, fs_model)
    │     └─ cost-sensitive floor by invoice value
    └─ flat verdict decision table → exactly one of 9 verdicts + evidence_refs
    │
+   ├─ certificates.write_proof_bundle() → one signed proof per order
+   │     ├─ verify_certificate(): source hashes, amount equation, rule allowlist
+   │     └─ certificate_to_tree(): the same proof, drawn — explain and the UI
+   │        read the issued bundle, so all three print one proof_hash
+   │
    ▼
 policy.evaluate(order, verdict, action, history)     R1..R7, default DENY
    │ ALLOW only
@@ -30,6 +35,14 @@ policy.evaluate(order, verdict, action, history)     R1..R7, default DENY
 Executor.execute()        sha256 event_id PK, WAL SQLite, append-only audit
    ├─ CREATE_PAYMENT_LINK  (mock adapter | live Razorpay test-mode)
    └─ DRAFT_REMINDER       (stages text; never sends)
+
+every HOLD / ESCALATE / AMBIGUOUS / quarantine / failed proof
+   ▼
+CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events append-only
+   └─ transition(case_id, expected_version, target, actor)
+        ├─ BEGIN IMMEDIATE: version check + event insert + state write in one txn
+        ├─ target not in LEGAL_TRANSITIONS[state] -> IllegalTransition, nothing written
+        └─ stale expected_version -> VersionConflict (UI 409, MCP error_type)
 ```
 
 ## Module map
@@ -48,7 +61,11 @@ Executor.execute()        sha256 event_id PK, WAL SQLite, append-only audit
 | `executor.py` | idempotent actions, append-only audit |
 | `agent.py` | sandboxed proposals, deterministic fallback |
 | `evaluate.py` | B0/B1/B2 baselines, DCPR, false-hold, report |
-| `mcp_server.py` | 6 MCP tools (FastMCP or stdio fallback) |
+| `certificates.py` | proof certificates: canonical JSON, signed integer terms, proof hash |
+| `verifier.py` | independent verification; imports no recon/fs/conformal |
+| `proof_tree.py` | the certificate drawn for a human; certificate fields only |
+| `cases.py` | exception FSM: idempotent cases, declared edges, optimistic concurrency |
+| `mcp_server.py` | 8 MCP tools (FastMCP or stdio fallback) |
 | `cli.py` | demo / generate / reconcile / explain / audit / mcp |
 
 ## Why headless, why local

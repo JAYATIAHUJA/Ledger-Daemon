@@ -167,18 +167,33 @@ It injects an unhandled verdict into the live enum and shows the policy engine r
 
 `python -m ledger_daemon import-statement <file>` completes the triangle: it parses a real HDFC or ICICI netbanking CSV export (auto-detected from the header, preamble lines skipped, amounts string-parsed straight to integer paise — the no-float contract holds at the ingestion boundary too) and replaces the batch's bank feed, UTRs recovered from the reference column or the narration itself. Unrecognised headers fail loudly instead of guessing; `--bank` forces a shape when detection is wrong.
 
-## MCP surface (6 tools)
+## Proofs you can check without trusting the engine
+
+Every verdict is issued with a certificate: the source rows it consumed (bound by SHA-256), the signed integer-paise terms that must sum to zero, the rule ids, and the calibration and config identities it was decided under. `proof_hash` is the SHA-256 of the canonical JSON of all of it.
 
 ```
-reconcile(batch_path) -> {verdict_counts, exception_ids, orders_per_sec}
+python -m ledger_daemon verify-proof out/proofs/ORD-1381.json --sources out/data/batch
+{"errors": [], "order_id": "ORD-1381", "proof_hash": "198629be...", "status": "VALID"}
+```
+
+`verifier.py` imports no reconciliation, scoring or conformal code — it recomputes the claim from the source files and reports error codes. Tamper with one paise, one hash, one rule id, or the verdict, and it says so.
+
+`python -m ledger_daemon explain ORD-1381` draws the same certificate as a tree, and the workbench renders it inline behind each row. All three surfaces read the issued bundle rather than rebuilding it, so they print one proof hash. Nodes marked `[ok]` are recomputed on the spot (proof hash, amount equation); nodes marked `[claim]` are what `verify-proof` settles against the sources — a tree that painted those green would be theatre.
+
+## MCP surface (8 tools)
+
+```
+reconcile(batch_path) -> {verdict_counts, exception_ids, orders_per_sec, open_cases}
 explain(order_id)     -> evidence chain: pass used, source rows, weight waterfall
 propose_recovery()    -> proposals for chaseable verdicts only
 approve(proposal_id)  -> executes; idempotent; re-gated by policy; returns event_id
 audit(order_id)       -> full append-only trail
 report()              -> the evaluation block
+cases(open_only)      -> exception cases: reason, state, version, full history
+case_transition(case_id, expected_version, target, actor) -> one declared FSM hop
 ```
 
-`propose_recovery()` and `approve()` are separate calls — no single tool call may move money. Run with `python -m ledger_daemon mcp` (uses the official `mcp` SDK if installed, else a built-in stdio fallback). MCP client config:
+`propose_recovery()` and `approve()` are separate calls — no single tool call may move money. `case_transition()` demands the version the caller last read: an agent acting on a stale view is refused, not merged. Run with `python -m ledger_daemon mcp` (uses the official `mcp` SDK if installed, else a built-in stdio fallback). MCP client config:
 
 ```json
 {"mcpServers": {"ledger-daemon": {"command": "python", "args": ["-m", "ledger_daemon", "mcp", "--root", "out"], "cwd": "<repo path>"}}}

@@ -172,8 +172,12 @@ def cmd_ui(args) -> int:
         source = f"synthetic world, seed {args.seed}, n={args.n}"
     _ld, decisions = run_ledger_daemon(orders, result)
     execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
+    # Only the demo batch owns the issued bundle. A proof from a different
+    # batch would render against the wrong rows -- the precise confusion this
+    # system exists to prevent -- so a live --dir run shows no proofs at all.
     serve(orders, result.verdicts, decisions, execu, source,
-          port=args.port, open_browser=not args.no_browser)
+          port=args.port, open_browser=not args.no_browser,
+          proofs_dir="" if args.dir else p["proofs"])
     return 0
 
 
@@ -350,7 +354,32 @@ def cmd_explain(args) -> int:
         print(f"unknown order {args.order_id}", file=sys.stderr)
         return 1
     print(render_explain(v))
+    print()
+    print(render_proof(args.proofs, args.order_id))
     return 0
+
+
+def render_proof(proofs_dir: str, order_id: str) -> str:
+    """The issued certificate, drawn as a tree.
+
+    Read from the bundle rather than rebuilt, so this prints the same proof
+    hash the workbench shows and `verify-proof` checks. A rebuilt certificate
+    would carry this run's config and calibration identity instead of the ones
+    the verdict was actually decided under -- a different proof, quietly.
+    """
+    from .proof_tree import certificate_to_tree, load_certificates, render_text
+
+    certificate = load_certificates(proofs_dir).get(order_id)
+    if certificate is None:
+        return (f"no issued proof for {order_id} in {os.path.abspath(proofs_dir)} — "
+                "run `python -m ledger_daemon demo` to issue the bundle")
+    command = os.path.join(proofs_dir, order_id + ".json")
+    return "\n".join((
+        render_text(certificate_to_tree(certificate)),
+        "",
+        "  [claim] holds only until the sources are checked:",
+        f"  python -m ledger_daemon verify-proof {command} --sources <batch dir>",
+    ))
 
 
 def render_explain(v) -> str:
@@ -515,6 +544,8 @@ def main(argv=None) -> int:
     e = sub.add_parser("explain", help="evidence chain for one order")
     e.add_argument("order_id")
     e.add_argument("--batch", default="out/data/batch")
+    e.add_argument("--proofs", default="out/proofs",
+                   help="issued proof bundle to render the certificate from")
     e.set_defaults(fn=cmd_explain)
 
     a = sub.add_parser("audit", help="append-only audit trail for one order")

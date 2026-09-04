@@ -1,4 +1,4 @@
-"""MCP surface (FR-9): six tools over stdio.
+"""MCP surface (FR-9): eight tools over stdio.
 
     reconcile(batch_path)  -> {match_rate?, verdict_counts, exception_ids}
     explain(order_id)      -> evidence chain: pass used, source rows, waterfall, why
@@ -6,12 +6,16 @@
     approve(proposal_id)   -> executes; idempotent; returns event_id
     audit(order_id)        -> full append-only trail
     report()               -> the evaluation block
+    cases(open_only)       -> the exception case list: state, version, history
+    case_transition(...)   -> one declared FSM hop, guarded by expected_version
 
 propose_recovery() and approve() are separate calls — no single tool call may
-move money (FR-9.1).
+move money (FR-9.1). case_transition() likewise refuses to guess: it demands
+the version the caller last read, so an agent working from a stale view loses
+to whoever moved the case, rather than overwriting them (F3).
 
 Uses the official `mcp` python SDK (FastMCP) when installed; otherwise falls
-back to a minimal JSON-RPC stdio loop implementing the same six tools, so the
+back to a minimal JSON-RPC stdio loop implementing the same eight tools, so the
 demo has zero required dependencies.
 """
 
@@ -22,7 +26,8 @@ import os
 import sys
 
 from . import policy
-from .cli import render_explain
+from .cases import CaseError, CaseState, CaseStore, open_exception_cases
+from .cli import render_explain, render_proof
 from .datagen import load_batch
 from .evaluate import evaluate, render_report, run_ledger_daemon
 from .executor import Executor, default_adapter
@@ -38,6 +43,7 @@ class Service:
         self.executor = Executor(os.path.join(root, "ledger.sqlite3"),
                                  adapter=default_adapter(),
                                  drafts_dir=os.path.join(root, "drafts"))
+        self.case_store = CaseStore(self.executor.db_path)
         self._loaded = None
         self._result = None
         self._proposals: dict[str, dict] = {}
@@ -56,13 +62,25 @@ class Service:
         counts: dict[str, int] = {}
         for v in res.verdicts.values():
             counts[v.verdict.value] = counts.get(v.verdict.value, 0) + 1
+        _ld, decisions = run_ledger_daemon(self.orders, res, attempts=self.executor.attempts)
+        opened = open_exception_cases(
+            self.case_store, res.verdicts, decisions,
+            certificate_ids={oid: v.certificate_id for oid, v in res.verdicts.items()})
         return {"orders": len(res.verdicts), "verdict_counts": dict(sorted(counts.items())),
-                "exception_ids": res.exception_ids, "orders_per_sec": res.orders_per_sec}
+                "exception_ids": res.exception_ids, "orders_per_sec": res.orders_per_sec,
+                "open_cases": len(opened)}
 
     def explain(self, order_id: str) -> str:
         res = self._ensure()
         v = res.verdicts.get(order_id)
-        return render_explain(v) if v else f"unknown order {order_id}"
+        if v is None:
+            return f"unknown order {order_id}"
+        # The same issued certificate the CLI and the workbench render: one
+        # proof hash, whichever surface the caller happens to be looking at.
+        return "\n\n".join((
+            render_explain(v),
+            render_proof(os.path.join(self.root, "proofs"), order_id),
+        ))
 
     def propose_recovery(self) -> list[dict]:
         res = self._ensure()
@@ -101,6 +119,35 @@ class Service:
     def audit(self, order_id: str) -> list[dict]:
         return self.executor.audit(order_id)
 
+    def cases(self, open_only: bool = True) -> list[dict]:
+        """Every exception case, with the version a transition must present."""
+        return [
+            {"case_id": c.case_id, "order_id": c.order_id, "reason_code": c.reason_code,
+             "certificate_id": c.certificate_id, "state": c.state.value,
+             "version": c.version, "opened_at": c.opened_at, "updated_at": c.updated_at,
+             "history": [{"seq": e.seq, "from": e.from_state.value, "to": e.to_state.value,
+                          "actor": e.actor, "evidence_refs": list(e.evidence_refs),
+                          "at": e.at}
+                         for e in self.case_store.events(c.case_id)]}
+            for c in self.case_store.list_cases(open_only=open_only)
+        ]
+
+    def case_transition(self, case_id: str, expected_version: int, target: str,
+                        actor: str, evidence_refs: list[str] | None = None) -> dict:
+        """One declared hop. Refuses stale versions and undeclared edges alike."""
+        try:
+            state = CaseState(target)
+        except ValueError:
+            return {"error": f"unknown case state {target!r}",
+                    "states": [s.value for s in CaseState]}
+        try:
+            case = self.case_store.transition(
+                case_id, int(expected_version), state, actor, tuple(evidence_refs or ()))
+        except CaseError as exc:
+            return {"error": str(exc), "error_type": type(exc).__name__}
+        return {"case_id": case.case_id, "state": case.state.value,
+                "version": case.version, "updated_at": case.updated_at}
+
     def report(self) -> str:
         res = self._ensure()
         if not self.truth:
@@ -119,6 +166,8 @@ def _run_fastmcp(svc: Service) -> int:
     app.tool()(svc.approve)
     app.tool()(svc.audit)
     app.tool()(svc.report)
+    app.tool()(svc.cases)
+    app.tool()(svc.case_transition)
     app.run()
     return 0
 
@@ -132,6 +181,14 @@ def _run_stdio_fallback(svc: Service) -> int:
         "approve": (svc.approve, {"proposal_id": {"type": "string"}}),
         "audit": (svc.audit, {"order_id": {"type": "string"}}),
         "report": (svc.report, {}),
+        "cases": (svc.cases, {"open_only": {"type": "boolean"}}),
+        "case_transition": (svc.case_transition, {
+            "case_id": {"type": "string"},
+            "expected_version": {"type": "integer"},
+            "target": {"type": "string", "enum": [s.value for s in CaseState]},
+            "actor": {"type": "string"},
+            "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        }),
     }
     for line in sys.stdin:
         line = line.strip()

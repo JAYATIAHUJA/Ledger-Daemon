@@ -14,6 +14,11 @@ fully offline:
 A resolution is evidence recorded, not a state silently mutated: "payment
 received" blocks the chase, "nothing arrived" releases the order to the chase
 list. Refresh re-runs nothing — the page re-renders from decisions already made.
+
+Every NEEDS YOU row is backed by a persisted exception case (cases.py). The
+row renders that case's id, state and version, and the resolution posts the
+version back; a screen left open while a colleague worked the same case loses
+with a 409 instead of overwriting their answer.
 """
 
 from __future__ import annotations
@@ -26,9 +31,18 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import policy
+from .cases import (
+    CaseState,
+    CaseStore,
+    ReconciliationCase,
+    VersionConflict,
+    open_exception_cases,
+    path_to,
+)
 from .executor import Executor
 from .models import Order
 from .money import rupees_str
+from .proof_tree import certificate_to_tree, load_certificates, render_text
 
 PORT = 7042
 UI_LAYER = "ui"
@@ -45,6 +59,11 @@ class ViewRow:
     rule: str
     detail: str
     p_match: str = ""
+    case_id: str = ""        # the exception case this row belongs to, if any
+    case_state: str = ""
+    case_version: int = 0    # the version a resolution must present to be applied
+    proof_hash: str = ""     # the same hash `explain` and `verify-proof` print
+    proof_tree: str = ""     # the issued certificate, rendered
 
 
 @dataclass
@@ -61,17 +80,35 @@ class View:
 
 
 def build_view(orders: list[Order], verdicts: dict, decisions: dict,
-               resolutions: dict[str, str]) -> View:
+               resolutions: dict[str, str],
+               cases: dict[str, ReconciliationCase] | None = None,
+               certificates: dict | None = None) -> View:
     """Split every order into exactly one column. Resolutions override HOLDs:
-    'paid' moves the row to BLOCKED, 'unpaid' moves it to SAFE."""
+    'paid' moves the row to BLOCKED, 'unpaid' moves it to SAFE.
+
+    `cases` carries the exception case behind each held row; its version is
+    what a resolution must present, so a screen left open while someone else
+    worked the case cannot silently overwrite their answer. `certificates`
+    carries the issued proof, rendered by the same code path as `explain`.
+    """
+    open_cases = cases or {}
+    proofs = certificates or {}
     view = View(resolved=dict(resolutions))
     for o in orders:
         v = verdicts[o.order_id]
         d = decisions[o.order_id]
         amount = v.delta_due_paise or o.amount_paise
+        case = open_cases.get(o.order_id)
         row = ViewRow(o.order_id, o.customer_name, amount,
                       v.verdict.value, d.rule_fired, d.detail or v.reason,
-                      p_match=v.p_match)
+                      p_match=v.p_match,
+                      case_id=case.case_id if case else "",
+                      case_state=case.state.value if case else "",
+                      case_version=case.version if case else 0)
+        certificate = proofs.get(o.order_id)
+        if certificate is not None:
+            row.proof_hash = certificate.proof_hash
+            row.proof_tree = render_text(certificate_to_tree(certificate))
         res = resolutions.get(o.order_id)
         if d.outcome == policy.HOLD and res == "paid":
             row.rule = "HUMAN_RESOLVED_PAID"
@@ -119,6 +156,23 @@ def save_resolution(execu: Executor, order_id: str, resolution: str) -> bool:
         "HUMAN_RESOLVED_" + resolution.upper(), resolution, 0)
 
 
+def resolve_case(store: CaseStore, case: ReconciliationCase, expected_version: int,
+                 resolution: str, actor: str = "human") -> ReconciliationCase:
+    """Walk the exception case to RESOLVED, one declared hop at a time.
+
+    The click is one gesture but the case still records the whole route --
+    who took it, that it was investigated, that the evidence was checked --
+    because a resolution nobody can reconstruct is not an audit trail.
+    A stale `expected_version` raises VersionConflict and changes nothing.
+    """
+    if resolution not in ("paid", "unpaid"):
+        raise ValueError(f"resolution must be paid|unpaid, got {resolution!r}")
+    return store.advance(
+        case.case_id, expected_version,
+        path_to(case.state, CaseState.RESOLVED), actor,
+        evidence_refs=(f"human-resolution:{resolution}",))
+
+
 # --------------------------- rendering -------------------------------------- #
 
 _VERDICT_LABEL = {
@@ -139,17 +193,25 @@ def _rows_html(rows: list[ViewRow], resolvable: bool) -> str:
     out = []
     for r in rows:
         buttons = ""
-        if resolvable:
+        if resolvable and r.case_id:
             oid = escape(r.order_id)
+            ver = int(r.case_version)
             buttons = (
                 '<div class="acts">'
-                f'<button class="ok" onclick="resolve(this, \'{oid}\', \'paid\')">'
+                f'<button class="ok" onclick="resolve(this, \'{oid}\', \'paid\', {ver})">'
                 '&#10003;&nbsp;Payment received &mdash; do not chase</button>'
-                f'<button class="warn" onclick="resolve(this, \'{oid}\', \'unpaid\')">'
+                f'<button class="warn" onclick="resolve(this, \'{oid}\', \'unpaid\', {ver})">'
                 '&#10007;&nbsp;Nothing arrived &mdash; safe to chase</button>'
                 '</div>')
         pm = (f'<span class="pm">P(match) {escape(r.p_match)}</span>'
               if r.p_match else "")
+        case = (f'<span class="case">case {escape(r.case_id[:12])} &middot; '
+                f'{escape(r.case_state)} &middot; v{int(r.case_version)}</span>'
+                if r.case_id else "")
+        proof = (f'<details class="proof"><summary>proof '
+                 f'{escape(r.proof_hash[:16])}&hellip;</summary>'
+                 f'<pre>{escape(r.proof_tree)}</pre></details>'
+                 if r.proof_tree else "")
         label = _VERDICT_LABEL.get(r.verdict, r.verdict)
         out.append(
             f'<details class="row" data-search="{escape((r.order_id + " " + r.customer).lower())}">'
@@ -160,7 +222,7 @@ def _rows_html(rows: list[ViewRow], resolvable: bool) -> str:
             f'<span class="amt">{escape(rupees_str(r.amount_paise))}</span>'
             f'</summary>'
             f'<div class="detail"><span class="rule">{escape(r.rule)}</span> '
-            f'{escape(r.detail)} {pm}{buttons}</div>'
+            f'{escape(r.detail)} {pm}{case}{proof}{buttons}</div>'
             f'</details>')
     return "\n".join(out) or '<p class="empty">nothing here &mdash; all clear</p>'
 
@@ -216,6 +278,14 @@ h1 { font-size:22px; font-weight:650; letter-spacing:-.01em }
 .rule { font-family:ui-monospace,Consolas,monospace; font-size:12px;
         color:var(--tx); background:var(--bg); border-radius:6px; padding:1px 6px }
 .pm { color:var(--hold) }
+.case { display:block; margin-top:6px; font-family:ui-monospace,Consolas,monospace;
+        font-size:11.5px; color:var(--dim) }
+.proof { margin-top:8px }
+.proof > summary { cursor:pointer; font-family:ui-monospace,Consolas,monospace;
+        font-size:11.5px; color:var(--dim) }
+.proof pre { margin-top:6px; padding:10px 12px; background:var(--bg);
+        border:1px solid var(--line); border-radius:8px; overflow-x:auto;
+        font-size:11px; line-height:1.5; color:var(--tx) }
 .acts { margin-top:12px; display:flex; flex-wrap:wrap; gap:10px }
 .acts button { font:inherit; font-size:13.5px; font-weight:550; cursor:pointer;
         border-radius:9px; padding:9px 14px; border:1px solid transparent }
@@ -229,12 +299,17 @@ footer { margin-top:22px; color:var(--dim); font-size:13px }
 @media (max-width:1020px) { .cols,.tiles { grid-template-columns:1fr } }
 """
     js = """
-async function resolve(btn, oid, res) {
+async function resolve(btn, oid, res, version) {
   btn.disabled = true;
   const r = await fetch('/resolve', {method:'POST',
     headers:{'content-type':'application/json'},
-    body: JSON.stringify({order_id: oid, resolution: res})});
+    body: JSON.stringify({order_id: oid, resolution: res, expected_version: version})});
   if (r.ok) location.reload();
+  else if (r.status === 409) {
+    // someone else moved this case while this screen sat open
+    alert('this case moved since the page loaded — reloading\n\n' + await r.text());
+    location.reload();
+  }
   else { btn.disabled = false; alert('resolution failed: ' + await r.text()); }
 }
 document.addEventListener('input', e => {
@@ -282,8 +357,21 @@ chasing money; clicks land in the same append-only audit trail as machine decisi
 
 def serve(orders: list[Order], verdicts: dict, decisions: dict,
           execu: Executor, source: str, port: int = PORT,
-          open_browser: bool = True) -> None:
-    state = {"resolutions": load_resolutions(execu.db_path)}
+          open_browser: bool = True, proofs_dir: str = "") -> None:
+    # Cases live in the same WAL database as the audit log, and are opened
+    # idempotently: restarting the server picks up whatever states the
+    # previous session's analysts left behind.
+    store = CaseStore(execu.db_path)
+    open_exception_cases(store, verdicts, decisions,
+                         certificate_ids={oid: v.certificate_id
+                                          for oid, v in verdicts.items()})
+    # Read the issued bundle rather than rebuilding it, so the screen shows the
+    # same proof hash as `explain` and `verify-proof`.
+    state = {
+        "resolutions": load_resolutions(execu.db_path),
+        "cases": {c.order_id: c for c in store.list_cases()},
+        "certificates": load_certificates(proofs_dir) if proofs_dir else {},
+    }
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):  # keep the terminal clean
@@ -300,7 +388,8 @@ def serve(orders: list[Order], verdicts: dict, decisions: dict,
         def do_GET(self):
             if self.path not in ("/", "/index.html"):
                 return self._send(404, b"not found", "text/plain")
-            view = build_view(orders, verdicts, decisions, state["resolutions"])
+            view = build_view(orders, verdicts, decisions, state["resolutions"],
+                              state["cases"], state["certificates"])
             self._send(200, render_html(view, source).encode())
 
         def do_POST(self):
@@ -311,10 +400,22 @@ def serve(orders: list[Order], verdicts: dict, decisions: dict,
                 oid, res = body["order_id"], body["resolution"]
                 if oid not in decisions:
                     return self._send(404, b"unknown order", "text/plain")
+                case = state["cases"].get(oid)
+                if case is None:
+                    return self._send(409, b"no open case for this order", "text/plain")
+                # The screen must present the version it was rendered from: a
+                # stale tab loses to whoever worked the case in the meantime.
+                expected = int(body["expected_version"])
+                moved = resolve_case(store, case, expected, res)
                 save_resolution(execu, oid, res)
                 state["resolutions"][oid] = res
+                state["cases"][oid] = moved
                 self._send(200, b"ok", "text/plain")
-            except (ValueError, KeyError, json.JSONDecodeError) as exc:
+            except VersionConflict as exc:
+                fresh = store.get(exc.case_id)
+                state["cases"][fresh.order_id] = fresh  # so a reload shows the truth
+                self._send(409, str(exc).encode(), "text/plain")
+            except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
                 self._send(400, str(exc).encode(), "text/plain")
 
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)

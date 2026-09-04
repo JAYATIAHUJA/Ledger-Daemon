@@ -37,6 +37,19 @@ CREATE TABLE IF NOT EXISTS audit (
 """
 
 
+def connect(db_path: str) -> sqlite3.Connection:
+    """The one way this codebase opens its ledger database.
+
+    WAL plus a generous busy timeout is what makes the audit log and the
+    exception cases survive concurrent writers in the same file; keeping the
+    pragma in one place stops a future table from quietly getting weaker
+    guarantees than the audit log it sits next to.
+    """
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
 def event_id_for(order_id: str, action_type: str, attempt_no: int) -> str:
     return hashlib.sha256(f"{order_id}|{action_type}|{attempt_no}".encode()).hexdigest()
 
@@ -98,9 +111,7 @@ class Executor:
         conn.close()
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        return connect(self.db_path)
 
     def audit_write(self, event_id: str, layer: str, actor: str, order_id: str,
                     input_obj: dict, output_obj: dict, rule_fired: str,
