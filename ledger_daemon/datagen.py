@@ -215,6 +215,7 @@ class _Gen:
             "clean": int(n * 0.55),
             "late": int(n * 0.08),
             "oob": int(n * 0.06),
+            "tds": int(n * 0.04),
             "split": int(n * 0.07),
             "partial_refund": int(n * 0.04),
             "refund_repay": int(n * 0.02),
@@ -257,6 +258,22 @@ class _Gen:
                 narration=self._oob_narration(o, with_inv, truncate),
             )
             self._label(o, Verdict.PAID_OUT_OF_BAND, True, False)
+
+        # B2B payer deducts statutory TDS and pays the net by bank transfer —
+        # no gateway row; books say unpaid; the shortfall is withheld tax,
+        # recoverable from Form 26AS, and chasing it insults a compliant payer
+        for k in range(counts["tds"]):
+            o = self._order(i, self._name(), self._amount(), "unpaid", "bank_transfer"); i += 1
+            rate_bp = self.rng.choice([200, 1000])   # 2% services / 10% professional fees
+            net = sub(o.amount_paise, pct_bp(o.amount_paise, rate_bp))
+            with_inv = k % 3 != 2
+            self._bank_credit(
+                value_date=_dayplus(o.due_date, self.rng.randrange(0, 3)),
+                amount=net,
+                utr=self._utr(),
+                narration=self._oob_narration(o, with_inv, k % 2 == 0),
+            )
+            self._label(o, Verdict.PAID_NET_OF_TDS, True, False)
 
         # split settlement: 2-4 captures share one settlement_id -> one credit
         remaining = counts["split"]

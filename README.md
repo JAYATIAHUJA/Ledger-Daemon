@@ -12,7 +12,7 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (46 tests, ~5 s).
+One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (53 tests, ~5 s).
 
 ```bash
 python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
@@ -26,26 +26,25 @@ python -m ledger_daemon mcp         # run as an MCP server over stdio
 ```
 LEDGER DAEMON — EVALUATION REPORT      seed=42  n=500
 
-Match rate ................................ 99.6%  (498/500)
-Throughput ................................ 25,000+ orders/sec
-Unresolved exceptions ..................... 16  -> eval/exceptions.md
+Match rate ................................ 96.8%  (484/500)
+Unresolved exceptions ..................... 30  -> eval/exceptions.md
 Conformal q_hat ........................... 0.0010  (calibrated)
 
 ---- Double-chase prevention ----------------------------------
-Already-paid orders a naive agent would chase:  80
-Blocked by Ledger Daemon:                       80
+Already-paid orders a naive agent would chase:  100
+Blocked by Ledger Daemon:                       100
 DOUBLE-CHASE PREVENTION RATE:                   100.0%  [95% CI 100.0%, 100.0%]
 
 False-hold rate (unpaid, wrongly blocked):      4.0%  (2/50)
 
 Rupees wrongly chased:
-  B0 naive ................ ₹2,59,79,763.00  (109 customers)
-  B1 gateway-only ......... ₹1,49,22,130.00  (59 customers)
-  B2 recon, no gate .......   ₹38,79,161.00  (16 customers)
+  B0 naive ................ ₹3,27,56,717.00  (129 customers)
+  B1 gateway-only ......... ₹2,06,98,485.00  (79 customers)
+  B2 recon, no gate .......   ₹72,23,062.00  (30 customers)
   Ledger Daemon ...........           ₹0.00  (0 customers)
 ```
 
-The false-hold rate is always printed next to DCPR — without it, DCPR is gameable by blocking everything. The two false-holds are policy rule R2 working as intended: their `due_date + 3` window extends beyond the bank feed's coverage, and *absence of evidence is not evidence of absence*.
+The false-hold rate is always printed next to DCPR — without it, DCPR is gameable by blocking everything. The two false-holds are policy rule R2 working as intended: their `due_date + 3` window extends beyond the bank feed's coverage, and *absence of evidence is not evidence of absence*. The 30 exceptions are honest abstentions — mostly out-of-band and TDS credits whose narration carries no invoice number; every one is blocked from chasing while it waits for a human.
 
 ## Architecture
 
@@ -60,7 +59,7 @@ The false-hold rate is always printed next to DCPR — without it, DCPR is gamea
  │ conformal abstention        │   pass 4: scored narration match
  └──────────────┬──────────────┘        (only where amount already agrees)
                 ▼
-        one of 9 Verdicts per order ── AMBIGUOUS ──▶ sandboxed LLM proposal
+        one of 10 Verdicts per order ── AMBIGUOUS ──▶ sandboxed LLM proposal
                 │                                    (typed output, no tools,
                 ▼                                     R7 holds < 0.85 conf)
  ┌─────────────────────────────┐
@@ -92,19 +91,33 @@ The false-hold rate is always printed next to DCPR — without it, DCPR is gamea
 - **Cost-sensitive floors (Elkan 2001)** — the threshold moves with the invoice value: blocking a chase on a ₹5,00,000 invoice demands more certainty than on a ₹4,200 one.
 - **Integer paise everywhere.** Floats are forbidden in every monetary path and a test enforces it.
 
+## The tenth verdict: paid net of TDS
+
+The most common "unpaid" invoice in Indian B2B is not unpaid. The customer paid it minus 2% or 10% statutory TDS (Section 194C/194J), deposited that tax against the merchant's PAN, and moved on — legally settled in full. The merchant's books show a shortfall forever; the money lives in Form 26AS, not in a bank transfer that is ever going to arrive.
+
+Every schedule-driven dunning system reads that shortfall as a debt. Ledger Daemon's exact-amount candidate gate used to make the same mistake in a worse way: the net credit never even became a match candidate, so a fully compliant payer came out `GENUINELY_UNPAID` — the exact wrong chase this project exists to prevent, hiding inside it.
+
+The fix is three deliberate pieces, not a tolerance band:
+
+- **`tds_rate_bp()`** recognises a shortfall that is *exactly* 1%, 2% or 10% of the invoice, integer paise, no tolerance — a shortfall that is *approximately* 2% is a short payment and stays chaseable (test-enforced).
+- The candidate gate probes the three statutory net amounts alongside the exact amount, so the credit enters Fellegi-Sunter scoring, where name, date and invoice-number evidence still have to earn the match. The waterfall prints `amount (net of 2% statutory TDS)` — the deduction is part of the explanation, not an excuse.
+- The policy engine denies with its own auditable rule: `R1_DENY_NET_OF_TDS — reconcile Form 26AS, do not dun a legally compliant payer`.
+
+Adding the verdict tripped `_assert_exhaustive()` before any of that logic existed — the policy engine refused to import until someone declared what collections does about withheld tax. That is the exhaustiveness guard doing its job on a real feature, not in a demo.
+
 ## Ablation: every component earns its place
 
 `python -m ledger_daemon ablate` — real numbers, seed 42 (full table + the conformal risk-coverage curve printed by the command):
 
 | Configuration | Match rate | DCPR | Exceptions | ₹ wrongly chased |
 |---|---|---|---|---|
-| R0 fuzzy @ 82, greedy | 95.8% | 92.5% | 1 | ₹14,76,493 |
-| R1 + optimal assignment | 98.6% | 92.5% | 15 | ₹14,76,493 |
-| R2 + Fellegi-Sunter weights | 99.6% | **100.0%** | 16 | **₹0** |
-| R3 + conformal abstention | 99.6% | 100.0% | 16 | ₹0 |
-| R4 + cost-sensitive floors (shipped) | 99.6% | 100.0% | 16 | ₹0 |
+| R0 fuzzy @ 82, greedy | 94.4% | 89.0% | 3 | ₹23,52,176 |
+| R1 + optimal assignment | 97.2% | 89.0% | 17 | ₹23,52,176 |
+| R2 + Fellegi-Sunter weights | 99.2% | **100.0%** | 18 | **₹0** |
+| R3 + conformal abstention | 96.8% | 100.0% | 30 | ₹0 |
+| R4 + cost-sensitive floors (shipped) | 96.8% | 100.0% | 30 | ₹0 |
 
-R3 and R4 are flat on this seed and we publish that anyway: F-S scores are so well separated on this generator that the conformal band never binds — every residual exception comes from assignment ties and duplicate UTRs, not borderline probabilities. Those layers are the insurance that binds when real-world narration quality degrades.
+Read R2 vs R3 honestly: conformal abstention *costs* 2.4 points of match rate — twelve extra name-only credits pushed from a confident guess into the exception list — and buys nothing extra in DCPR on this seed. We ship it anyway, and publish the cost, because P(match)=0.999 on a name-similarity alone is exactly the kind of confidence that stops being trustworthy the day narration quality degrades; the stress ablation is where that insurance pays out.
 
 ## Answering the hard questions
 
@@ -120,7 +133,7 @@ R3 and R4 are flat on this seed and we publish that anyway: F-S scores are so we
 |---|---:|---:|---:|
 | double-chase prevention | 100.0% | 100.0% | 100.0% |
 | false-hold rate | 4.0% | 4.0% | 6.0% |
-| verdict match rate | 98.0% | 99.3% | 99.8% |
+| verdict match rate | 96.8% | 98.7% | 99.4% |
 | ₹ wrongly chased | ₹0.00 | ₹0.00 | ₹0.00 |
 
 **20/20 seeds at 100% double-chase prevention and ₹0 wrongly chased.** What this does *not* show: every world comes from the same generator, so the sweep bounds sampling luck, not model risk — the authored-generator limitation below stands in full. The calibration and evaluation seeds are asserted disjoint by `assert_disjoint_seeds()`, so a refactor that collapses them fails loudly instead of quietly reporting an inflated match rate.
@@ -131,7 +144,7 @@ R3 and R4 are flat on this seed and we publish that anyway: F-S scores are so we
 python -m ledger_daemon prove
 ```
 
-It injects a tenth verdict into the live enum and shows the policy engine refusing to load. This is the layer that turns the 9-verdict taxonomy from documentation into a constraint.
+It injects an unhandled verdict into the live enum and shows the policy engine refusing to load. This is the layer that turned the taxonomy from documentation into a constraint — and it is not hypothetical: `PAID_NET_OF_TDS`, the tenth verdict, was added through exactly this gate.
 
 **"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught a real divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
 

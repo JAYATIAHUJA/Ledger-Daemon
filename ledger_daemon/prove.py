@@ -1,6 +1,6 @@
 """Demonstrate the exhaustiveness guard instead of asking you to believe it.
 
-`python -m ledger_daemon prove` adds a tenth verdict to the taxonomy at runtime,
+`python -m ledger_daemon prove` adds an unhandled verdict to the taxonomy at runtime,
 exactly as a developer would when a new settlement mode appears, and shows the
 policy engine refusing to load until someone decides what collections does about
 it. The guarantee is that a new way for money to arrive cannot silently inherit
@@ -47,7 +47,7 @@ def run() -> int:
         print(f"    {v.value:<{width}}  ->  {policy.VERDICT_DISPOSITION[v].value}")
 
     print()
-    print("Now a tenth verdict arrives — settled_via_wallet — and nobody decides")
+    print("Now a new verdict arrives — settled_via_wallet — and nobody decides")
     print("what collections does about it. Injecting it into the live enum:")
     print()
     for line in _INJECT.strip().splitlines():

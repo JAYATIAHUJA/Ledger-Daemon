@@ -27,6 +27,7 @@ import random
 from dataclasses import dataclass, field
 
 from .models import BankTxn, Order
+from .money import tds_rate_bp
 from .narration import invoice_in_narration
 from .similarity import name_similarity
 
@@ -96,7 +97,11 @@ class FSModel:
             extra = f" {note}" if note else ""
             waterfall.append((f"{name} {tag}{extra} (m={fw.m:.2f} u={fw.u:.4f})", f"{w:+.2f}"))
 
-        apply("amount (exact paise)", self.amount, o.amount_paise == b.amount_paise)
+        rate = tds_rate_bp(o.amount_paise, b.amount_paise)
+        if rate is not None:
+            apply(f"amount (net of {rate // 100}% statutory TDS)", self.amount, True)
+        else:
+            apply("amount (exact paise)", self.amount, o.amount_paise == b.amount_paise)
         apply("date within T+0..T+3", self.date, abs(_day_delta(o.due_date, b.value_date)) <= 3)
         apply("invoice no. in narration", self.invoice, invoice_in_narration(o.invoice_no, b.narration))
         sim = name_similarity(o.customer_name, b.narration)

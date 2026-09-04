@@ -16,6 +16,9 @@ class Verdict(str, Enum):
     PAID_OUT_OF_BAND = "paid_out_of_band"      # gw absent, bank NEFT/UPI  <- wrongly chaseable
     REFUNDED_THEN_REPAID = "refunded_then_repaid"  # net settled           <- wrongly chaseable
     PARTIALLY_PAID = "partially_paid"          # chase only the delta
+    PAID_NET_OF_TDS = "paid_net_of_tds"        # bank credit = invoice minus a
+                                               # statutory TDS rate; the shortfall
+                                               # lives in Form 26AS, not in dunning
     GENUINELY_UNPAID = "genuinely_unpaid"      # the ONLY clean chaseable state
     FAILED_NOT_DEBITED = "failed_not_debited"  # retry, do not dun
     CHARGEBACK_OPEN = "chargeback_open"        # freeze, escalate
@@ -26,7 +29,8 @@ CHASEABLE_VERDICTS = frozenset({Verdict.GENUINELY_UNPAID, Verdict.PARTIALLY_PAID
 
 # Verdicts a naive duner would wrongly chase (used in the DCPR definition, §A6).
 WRONGLY_CHASEABLE = frozenset(
-    {Verdict.SETTLED_LATE, Verdict.PAID_OUT_OF_BAND, Verdict.REFUNDED_THEN_REPAID}
+    {Verdict.SETTLED_LATE, Verdict.PAID_OUT_OF_BAND, Verdict.REFUNDED_THEN_REPAID,
+     Verdict.PAID_NET_OF_TDS}
 )
 
 

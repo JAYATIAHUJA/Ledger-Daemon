@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from . import conformal as cf
 from .fs import FSModel, _day_delta, p_match
 from .models import BankTxn, Evidence, GatewayCapture, Order, OrderVerdict, Verdict
-from .money import add, sub
+from .money import STATUTORY_TDS_RATES_BP, add, pct_bp, sub, tds_rate_bp
 from .narration import parse
 
 TIE_MARGIN_POINTS = 5.0
@@ -235,7 +235,12 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
     from .similarity import name_similarity
     for o in fuzzy_orders:
         cands = []
-        for b in pool_by_amount.get(o.amount_paise, []):  # hard amount gate (FR-2.4)
+        # amount gate (FR-2.4): exact paise, plus the three statutory TDS nets —
+        # a B2B payer who withheld 1/2/10% must still become a candidate
+        candidate_txns = list(pool_by_amount.get(o.amount_paise, []))
+        for bp in STATUTORY_TDS_RATES_BP:
+            candidate_txns += pool_by_amount.get(sub(o.amount_paise, pct_bp(o.amount_paise, bp)), [])
+        for b in candidate_txns:
             if config.simple_scores:
                 sim = name_similarity(o.customer_name, b.narration)
                 cands.append((b.txn_id, sim * 100.0,
@@ -364,6 +369,15 @@ def _resolve(o: Order, caps: list[GatewayCapture],
         ev = Evidence("pass4_fuzzy", [b.txn_id],
                       f"credit {b.txn_id} '{b.narration[:60]}' weight {w:+.2f}", waterfall)
         if decision == "MATCH":
+            rate = None if is_refund_net_zero else tds_rate_bp(o.amount_paise, b.amount_paise)
+            if rate is not None:
+                withheld = sub(o.amount_paise, b.amount_paise)
+                return mk(Verdict.PAID_NET_OF_TDS, ev,
+                          money_received_paise=b.amount_paise,
+                          p_match=f"{p:.4f}",
+                          reason=f"paid net of {rate // 100}% statutory TDS "
+                                 f"({withheld} paise withheld against Form 26AS) — "
+                                 f"P(match)={p:.4f}")
             verdict = Verdict.REFUNDED_THEN_REPAID if is_refund_net_zero else Verdict.PAID_OUT_OF_BAND
             floors = f"conformal q_hat={q_hat:.4f}" if config.use_conformal else "P>=0.5"
             if config.use_cost_floor and not config.simple_scores:
@@ -405,6 +419,7 @@ def calibrate(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
         t = truth.get(oid)
         if not t:
             continue
-        if t["true_verdict"] in ("paid_out_of_band", "refunded_then_repaid") and v.p_match:
+        if t["true_verdict"] in ("paid_out_of_band", "refunded_then_repaid",
+                                 "paid_net_of_tds") and v.p_match:
             probs.append(float(v.p_match))
     return cf.conformal_threshold(probs, alpha), result.fs_model, probs

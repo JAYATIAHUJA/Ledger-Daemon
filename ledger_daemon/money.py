@@ -33,6 +33,27 @@ def pct_bp(amount: int, basis_points: int) -> int:
     return (paise(amount) * paise(basis_points)) // 10_000
 
 
+# Statutory TDS rates a B2B payer may withhold before paying an invoice:
+# 1% (194C, individual/HUF contractor), 2% (194C company / 194H / 194J technical),
+# 10% (194J professional fees). Basis points, integer arithmetic only.
+STATUTORY_TDS_RATES_BP = (100, 200, 1000)
+
+
+def tds_rate_bp(gross: int, received: int) -> int | None:
+    """The statutory TDS rate (in bp) if `received` is exactly `gross` net of one.
+
+    Exact-paise test, no tolerance: a shortfall that is *approximately* 2% is a
+    short payment, not TDS, and must stay chaseable. Returns None otherwise.
+    """
+    if received <= 0 or received >= paise(gross):
+        return None
+    shortfall = sub(gross, received)
+    for bp in STATUTORY_TDS_RATES_BP:
+        if shortfall == pct_bp(gross, bp):
+            return bp
+    return None
+
+
 def rupees_str(p: int) -> str:
     """Format paise as an Indian-grouped rupee string, e.g. 842150_00 -> '₹8,42,150.00'."""
     paise(p)

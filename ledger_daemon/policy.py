@@ -49,6 +49,7 @@ class Disposition(str, Enum):
     BLOCK_ALREADY_PAID = "BLOCK_ALREADY_PAID"    # the money is provably in
     BLOCK_NOT_A_DEBT = "BLOCK_NOT_A_DEBT"        # never debited; retry, do not dun
     FREEZE_ESCALATE = "FREEZE_ESCALATE"          # dispute open; a human owns this
+    BLOCK_STATUTORY_DEDUCTION = "BLOCK_STATUTORY_DEDUCTION"  # shortfall is withheld tax
     ABSTAIN_FOR_HUMAN = "ABSTAIN_FOR_HUMAN"      # not classifiable at alpha; exception list
 
 
@@ -59,6 +60,7 @@ VERDICT_DISPOSITION: dict[Verdict, Disposition] = {
     Verdict.REFUNDED_THEN_REPAID: Disposition.BLOCK_ALREADY_PAID,
     Verdict.PARTIALLY_PAID:       Disposition.CHASE,
     Verdict.GENUINELY_UNPAID:     Disposition.CHASE,
+    Verdict.PAID_NET_OF_TDS:      Disposition.BLOCK_STATUTORY_DEDUCTION,
     Verdict.FAILED_NOT_DEBITED:   Disposition.BLOCK_NOT_A_DEBT,
     Verdict.CHARGEBACK_OPEN:      Disposition.FREEZE_ESCALATE,
     Verdict.AMBIGUOUS:            Disposition.ABSTAIN_FOR_HUMAN,
@@ -108,6 +110,11 @@ def _r1(verdict: Verdict) -> Decision | None:
     if d is Disposition.BLOCK_NOT_A_DEBT:
         return Decision(DENY, "R1_DENY_NOT_A_DEBT",
                         f"{verdict.value}: never debited, this is a retry not a dunning case")
+    if d is Disposition.BLOCK_STATUTORY_DEDUCTION:
+        return Decision(DENY, "R1_DENY_NET_OF_TDS",
+                        f"{verdict.value}: the shortfall is statutory TDS the customer has "
+                        "withheld and will deposit against your PAN — reconcile Form 26AS, "
+                        "do not dun a legally compliant payer")
     if d is Disposition.FREEZE_ESCALATE:
         return Decision(ESCALATE, "R1_ESCALATE_DISPUTE_OPEN",
                         f"{verdict.value}: dispute in flight, collections must freeze")
