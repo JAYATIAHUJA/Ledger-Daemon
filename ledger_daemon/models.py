@@ -92,3 +92,4 @@ class OrderVerdict:
     reason: str = ""
     bank_coverage_ok: bool = True      # False -> policy R2 must HOLD (absence of evidence
                                        # is not evidence of absence)
+    certificate_id: str = ""           # populated when the immutable proof bundle is emitted

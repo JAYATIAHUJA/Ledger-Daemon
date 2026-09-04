@@ -16,7 +16,7 @@ from .evaluate import EvalReport, evaluate, render_exceptions, render_report, ru
 from .executor import Executor, default_adapter
 from .models import Verdict
 from .money import rupees_str
-from .recon import calibrate, reconcile
+from .recon import FULL, calibrate, reconcile
 from .robustness import CAL_SEED_OFFSET, assert_disjoint_seeds
 
 
@@ -27,6 +27,7 @@ def _paths(root: str) -> dict:
         "eval_dir": os.path.join(root, "eval"),
         "db": os.path.join(root, "ledger.sqlite3"),
         "drafts": os.path.join(root, "drafts"),
+        "proofs": os.path.join(root, "proofs"),
     }
 
 
@@ -71,6 +72,18 @@ def cmd_demo(args) -> int:
 
     print("[3/6] reconciling (deterministic, zero LLM) ...")
     result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model)
+    from .certificates import (
+        batch_root, calibration_identity, recon_config_hash, source_hash_map,
+        source_rows, write_proof_bundle,
+    )
+    cal_rows = source_rows(cal[0], cal[1], cal[2])
+    calibration_id = calibration_identity(q_hat, batch_root(source_hash_map(cal_rows)))
+    proof_manifest = write_proof_bundle(
+        p["proofs"], orders, captures, bank, result.verdicts,
+        config_hash=recon_config_hash(FULL),
+        calibration_id=calibration_id,
+    )
+    print(f"      {proof_manifest['certificate_count']} tamper-evident proofs -> {p['proofs']}")
 
     print("[4/6] policy gate + executor (idempotent, append-only audit) ...")
     if os.path.exists(p["db"]):
@@ -369,6 +382,51 @@ def cmd_audit(args) -> int:
     return 0
 
 
+def cmd_verify_proof(args) -> int:
+    """Verify a certificate from source facts without invoking reconciliation."""
+    from .certificates import ProofCertificate, source_rows
+    from .verifier import verify_certificate
+
+    try:
+        with open(args.certificate, encoding="utf-8") as fh:
+            certificate = ProofCertificate.from_json(fh.read())
+        orders, captures, bank, _truth = load_batch(args.sources)
+        manifest_path = os.path.join(os.path.dirname(args.certificate), "proof-manifest.json")
+        expected_config = args.config_hash or None
+        expected_calibration = args.calibration_id or None
+        manifest_error = None
+        if os.path.exists(manifest_path):
+            with open(manifest_path, encoding="utf-8") as fh:
+                manifest = json.load(fh)
+            expected_config = expected_config or manifest.get("config_hash")
+            expected_calibration = expected_calibration or manifest.get("calibration_id")
+            entry = manifest.get("certificates", {}).get(certificate.order_id, {})
+            if entry.get("proof_hash") != certificate.proof_hash:
+                manifest_error = "MANIFEST_PROOF_MISMATCH"
+        checked = verify_certificate(
+            certificate,
+            source_rows(orders, captures, bank),
+            expected_config_hash=expected_config,
+            expected_calibration_id=expected_calibration,
+        )
+        errors = list(checked.error_codes)
+        if manifest_error:
+            errors.append(manifest_error)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        print(json.dumps({"status": "INVALID", "errors": ["CERTIFICATE_SCHEMA_INVALID"],
+                          "detail": str(exc)}, sort_keys=True))
+        return 1
+
+    status = "VALID" if not errors else "INVALID"
+    print(json.dumps({
+        "status": status,
+        "order_id": certificate.order_id,
+        "proof_hash": certificate.proof_hash,
+        "errors": errors,
+    }, sort_keys=True))
+    return 0 if not errors else 1
+
+
 def cmd_mcp(args) -> int:
     from .mcp_server import main as mcp_main
     return mcp_main(args.root)
@@ -463,6 +521,13 @@ def main(argv=None) -> int:
     a.add_argument("order_id")
     a.add_argument("--db", default="out/ledger.sqlite3")
     a.set_defaults(fn=cmd_audit)
+
+    vp = sub.add_parser("verify-proof", help="independently verify one proof against source CSVs")
+    vp.add_argument("certificate", help="path to an order proof JSON")
+    vp.add_argument("--sources", required=True, help="batch directory containing the source CSVs")
+    vp.add_argument("--config-hash", default="", help="trusted expected reconciliation config hash")
+    vp.add_argument("--calibration-id", default="", help="trusted expected calibration identity")
+    vp.set_defaults(fn=cmd_verify_proof)
 
     m = sub.add_parser("mcp", help="run the MCP server (stdio)")
     m.add_argument("--root", default="out")
