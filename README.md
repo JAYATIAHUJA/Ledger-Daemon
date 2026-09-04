@@ -14,7 +14,7 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (46 tests, ~4 s).
+One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (46 tests, ~5 s).
 
 ```bash
 python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
