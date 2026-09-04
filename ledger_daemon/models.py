@@ -84,6 +84,7 @@ class Evidence:
     risk_calibration_id: str = ""
     risk_authorized: bool = False
     score_ppm: int = 0                     # persisted score; never a float
+    authority_state: str = ""              # drift authority this decision ran under
 
     def __post_init__(self) -> None:
         if self.automation_path not in {"exact", "probabilistic", "manual"}:

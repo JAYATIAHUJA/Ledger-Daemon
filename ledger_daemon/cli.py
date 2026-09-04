@@ -16,7 +16,7 @@ from .evaluate import EvalReport, evaluate, render_exceptions, render_report, ru
 from .executor import Executor, default_adapter
 from .models import Verdict
 from .money import rupees_str
-from .recon import FULL, calibrate, reconcile
+from .recon import FULL, ReconConfig, calibrate, reconcile
 from .robustness import CAL_SEED_OFFSET, assert_disjoint_seeds
 
 
@@ -203,6 +203,132 @@ def cmd_ingest(args) -> int:
 def cmd_prove(args) -> int:
     from .prove import run
     return run()
+
+
+def cmd_drift_demo(args) -> int:
+    """Walk the authority ladder under a declared, worsening feed change.
+
+    The shift is stated, not mined: the bank starts settling progressively
+    later, which is an ordinary operational event and exactly the kind of thing
+    that silently invalidates a threshold fitted last month. Picking a
+    generator seed that happened to look shifted would tune the demo to the
+    fixture; declaring the change keeps what you see below a property of the
+    controller.
+    """
+    from .authority import AuthorityController, audit_authority
+    from .cases import CaseStore, open_exception_cases
+    from .drift import DriftMonitor, observations, shift_feed
+
+    p = _paths(args.out)
+    os.makedirs(args.out, exist_ok=True)
+    batch_dir = os.path.join(args.out, "batch")
+
+    print(f"[1/4] calibration window (seed={args.seed}, n={args.n}, profile=clean) ...")
+    generate(args.seed, args.n, batch_dir)
+    orders, captures, bank, _truth = load_batch(batch_dir)
+
+    def window(lag_days: int, authority=None):
+        feed = shift_feed(bank, lag_days=lag_days) if lag_days else bank
+        result = reconcile(orders, captures, feed, q_hat=0.001,
+                           config=ReconConfig(authority=authority))
+        return feed, result
+
+    _feed, baseline_result = window(0)
+    baseline = observations(orders, captures, bank, baseline_result.verdicts)
+    monitor = DriftMonitor(baseline)
+    calibration_id = f"cal-{monitor.baseline_hash[:12]}"
+    print(f"      {len(baseline)} probabilistic rows -> baseline {monitor.baseline_hash[:16]}")
+    print(f"      calibration_id {calibration_id}")
+
+    execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
+    controller = AuthorityController(calibration_id)
+
+    print()
+    print("[2/4] live windows — settlement arriving progressively later ...")
+    print(f"      {'window':<24} {'severity':<10} {'rule':<12} state")
+    ladder = [controller.state.value]
+    for lag in (0, 7, 10, 14):
+        feed, result = window(lag)
+        report = monitor.observe(observations(orders, captures, feed, result.verdicts))
+        decision = controller.apply(report, calibration_id)
+        audit_authority(execu, decision)
+        ladder.append(decision.state.value)
+        label = "unchanged" if lag == 0 else f"settlement +{lag}d"
+        print(f"      {label:<24} {report.severity:<10} {decision.rule_fired:<12} "
+              f"{decision.state.value}")
+        for signal in report.signals:
+            if signal.severity != "HEALTHY":
+                print(f"          {signal.name}: {signal.baseline} -> {signal.live} "
+                      f"(delta {signal.delta}, {signal.severity})")
+
+    print()
+    print("      " + " -> ".join(_dedupe(ladder)))
+    print(f"      probabilistic authority: {controller.probabilistic_authorized}")
+
+    print()
+    print("[3/4] what the halt costs — same batch, gated under each authority ...")
+    before = _gate(orders, baseline_result)
+    _feed, halted_result = window(0, controller.state)
+    after = _gate(orders, halted_result)
+    print(f"      {'':<34}{'CALIBRATED':>12}{'HALTED':>12}")
+    print(f"      {'chases allowed on exact proof':<34}{before['exact']:>12}{after['exact']:>12}")
+    print(f"      {'chases allowed on a fuzzy score':<34}"
+          f"{before['probabilistic']:>12}{after['probabilistic']:>12}")
+    print(f"      {'verdicts sent to a human (R_DRIFT_HALT)':<34}{'-':>12}"
+          f"{after['drift_halt']:>12}")
+    if after["exact"] != before["exact"]:
+        raise SystemExit("a drift halt must never touch an exact-path proof")
+    print()
+    print("      Exact-path chases are untouched: a UTR join never depended on a")
+    print("      threshold. The cost of the halt is the other direction — those")
+    print(f"      {after['drift_halt']} orders the fuzzy matcher had classified as already paid")
+    print("      are no longer classifications this system will stand behind, so they")
+    print("      move from BLOCKED to NEEDS YOU rather than staying silently closed.")
+
+    print()
+    print("[4/4] every halted verdict becomes a case a human owns ...")
+    store = CaseStore(p["db"])
+    opened = open_exception_cases(store, halted_result.verdicts, after["decisions"])
+    reopened = open_exception_cases(store, halted_result.verdicts, after["decisions"])
+    print(f"      {len(opened)} open exception cases; re-running opened "
+          f"{len(reopened) - len(opened)} more")
+
+    print()
+    print("recovery is deliberately harder than degradation:")
+    for i in range(2):
+        decision = controller.apply(monitor.observe(baseline), calibration_id)
+        audit_authority(execu, decision)
+        print(f"      healthy window {i + 1}: {decision.rule_fired:<34} {decision.state.value}")
+    refit = f"cal-{monitor.baseline_hash[12:24]}"
+    decision = controller.apply(monitor.observe(baseline), refit)
+    audit_authority(execu, decision)
+    print(f"      refit {refit}: {decision.rule_fired:<22} {decision.state.value}")
+    print(f"      probabilistic authority restored: {controller.probabilistic_authorized}")
+
+    print()
+    print("every transition above is in the append-only audit log:")
+    print(f"  python -m ledger_daemon audit AUTHORITY --db {p['db']}")
+    return 0
+
+
+def _dedupe(states: list[str]) -> list[str]:
+    out: list[str] = []
+    for state in states:
+        if not out or out[-1] != state:
+            out.append(state)
+    return out
+
+
+def _gate(orders, result) -> dict:
+    """Gate every order and count the outcome by automation path."""
+    _ld, decisions = run_ledger_daemon(orders, result)
+    counts = {"exact": 0, "probabilistic": 0, "drift_halt": 0, "decisions": decisions}
+    for oid, decision in decisions.items():
+        if decision.rule_fired == "R_DRIFT_HALT":
+            counts["drift_halt"] += 1
+        if decision.outcome == policy.ALLOW:
+            counts[result.verdicts[oid].evidence.automation_path] += 1
+    return counts
 
 
 def cmd_sweep(args) -> int:
@@ -501,6 +627,13 @@ def main(argv=None) -> int:
 
     pv = sub.add_parser("prove", help="demonstrate the verdict-exhaustiveness guard firing")
     pv.set_defaults(fn=cmd_prove)
+
+    dd = sub.add_parser("drift-demo",
+                        help="walk the authority ladder under real distribution shift")
+    dd.add_argument("--seed", type=int, default=42)
+    dd.add_argument("--n", type=int, default=500)
+    dd.add_argument("--out", default="out/drift-demo")
+    dd.set_defaults(fn=cmd_drift_demo)
 
     sw = sub.add_parser("sweep", help="re-run the whole pipeline on N unseen seeds")
     sw.add_argument("--seeds", type=int, default=20, help="how many seeds to sweep")

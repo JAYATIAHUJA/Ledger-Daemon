@@ -24,6 +24,7 @@ from .fs import FSModel, _day_delta, p_match
 from .models import BankTxn, Evidence, GatewayCapture, Order, OrderVerdict, Verdict
 from .money import STATUTORY_TDS_RATES_BP, add, pct_bp, sub, tds_rate_bp
 from .narration import parse
+from .authority import AuthorityState, probabilistic_authorized
 from .risk_control import RiskCalibration, risk_authorized
 
 TIE_MARGIN_POINTS = 5.0
@@ -42,6 +43,10 @@ class ReconConfig:
     use_conformal: bool = True    # False: hard P(match) >= 0.5 cut
     use_cost_floor: bool = True
     risk_calibration: RiskCalibration | None = None
+    # Drift authority in force for this run. None means the monitor never ran,
+    # which is not the same as "authorized" -- policy treats an unstated
+    # authority as unrevoked, and drift-demo/cli always states it.
+    authority: AuthorityState | None = None
 
 
 FULL = ReconConfig()
@@ -364,6 +369,7 @@ def _resolve(o: Order, caps: list[GatewayCapture],
             risk_calibration_id=calibration.calibration_id if calibration else "",
             risk_authorized=False,
             score_ppm=score_ppm,
+            authority_state=config.authority.value if config.authority else "",
         )
     if chosen is not None:
         b = txn_by_id[chosen]
@@ -396,6 +402,7 @@ def _resolve(o: Order, caps: list[GatewayCapture],
             risk_authorized=(risk_authorized(score_ppm, o.amount_paise, calibration)
                              if calibration else False),
             score_ppm=score_ppm,
+            authority_state=config.authority.value if config.authority else "",
         )
         probabilistic_evidence = ev
         if decision == "MATCH":

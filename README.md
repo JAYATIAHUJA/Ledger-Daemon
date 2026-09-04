@@ -167,6 +167,26 @@ It injects an unhandled verdict into the live enum and shows the policy engine r
 
 `python -m ledger_daemon import-statement <file>` completes the triangle: it parses a real HDFC or ICICI netbanking CSV export (auto-detected from the header, preamble lines skipped, amounts string-parsed straight to integer paise — the no-float contract holds at the ingestion boundary too) and replaces the batch's bank feed, UTRs recovered from the reference column or the narration itself. Unrecognised headers fail loudly instead of guessing; `--bank` forces a shape when detection is wrong.
 
+## When the data shifts, the matcher loses its licence
+
+The conformal threshold and the rupee-risk calibration are distribution-free, not distribution-proof: both hold only while the live stream is exchangeable with the batch they were fitted on. A drift monitor scores each live window against that batch on five integer signals — narration parse rate, a nonconformity share, amount mix, settlement lag, fee basis points — and an authority ladder decides what to do about it.
+
+```
+python -m ledger_daemon drift-demo --seed 42 --n 500 --out out/drift-demo
+
+      window                   severity   rule         state
+      unchanged                HEALTHY    A5_CLEAR     CALIBRATED
+      settlement +7d           SEVERE     A1_WARN      WARNING
+      settlement +10d          SEVERE     A2_DEGRADE   DEGRADED
+      settlement +14d          SEVERE     A3_HALT      AUTOMATION_HALTED
+
+      CALIBRATED -> WARNING -> DEGRADED -> AUTOMATION_HALTED
+```
+
+One severe window warns; two consecutive revoke probabilistic authority. Recovery needs consecutive healthy windows **and** a new calibration id — quiet alone leaves the threshold that was fitted before the shift. `R_DRIFT_HALT` then holds every probabilistic verdict, in both directions: a fuzzy "already paid" stops being a confident DENY and becomes a human's question. Exact UTR and settlement-id proofs are untouched, because they never depended on a fitted threshold.
+
+The shift above is declared, not mined from a lucky seed — see D18 in DECISIONS.md. Every transition lands in the same append-only audit log as the rest: `python -m ledger_daemon audit AUTHORITY --db out/drift-demo/ledger.sqlite3`.
+
 ## Proofs you can check without trusting the engine
 
 Every verdict is issued with a certificate: the source rows it consumed (bound by SHA-256), the signed integer-paise terms that must sum to zero, the rule ids, and the calibration and config identities it was decided under. `proof_hash` is the SHA-256 of the canonical JSON of all of it.

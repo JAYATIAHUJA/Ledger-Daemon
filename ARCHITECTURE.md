@@ -29,7 +29,16 @@ reconcile(orders, captures, bank, q_hat, fs_model)
    │        read the issued bundle, so all three print one proof_hash
    │
    ▼
-policy.evaluate(order, verdict, action, history)     R1..R7, default DENY
+DriftMonitor.observe(window)      -> HEALTHY | WARNING | SEVERE | UNDERSIZED
+   └─ AuthorityController.apply()  CALIBRATED -> WARNING -> DEGRADED -> HALTED
+        ├─ revoke on 2 consecutive severe windows; halt on 3
+        ├─ recover only on N healthy windows AND a new calibration id
+        └─ every transition appended to the same audit log
+   │
+   ▼
+policy.evaluate(order, verdict, action, history)     R0, R1..R7, default DENY
+   ├─ R0 R_DRIFT_HALT: authority revoked -> every probabilistic verdict HOLDs
+   │                   (exact proofs are never revoked)
    │ ALLOW only
    ▼
 Executor.execute()        sha256 event_id PK, WAL SQLite, append-only audit
@@ -64,6 +73,8 @@ CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events app
 | `certificates.py` | proof certificates: canonical JSON, signed integer terms, proof hash |
 | `verifier.py` | independent verification; imports no recon/fs/conformal |
 | `proof_tree.py` | the certificate drawn for a human; certificate fields only |
+| `drift.py` | five integer signals; scores a live window against the calibration batch |
+| `authority.py` | the kill switch: hysteresis ladder, revoke fast, recover slow |
 | `cases.py` | exception FSM: idempotent cases, declared edges, optimistic concurrency |
 | `mcp_server.py` | 8 MCP tools (FastMCP or stdio fallback) |
 | `cli.py` | demo / generate / reconcile / explain / audit / mcp |

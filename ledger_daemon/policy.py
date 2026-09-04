@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import assert_never
 
+from .authority import REVOKED_STATES
 from .models import CHASEABLE_VERDICTS, Order, OrderVerdict, Verdict
 from .recon import COST_WRONG_CHASE_PAISE, RECOVERY_RATE_DEN, RECOVERY_RATE_NUM
 
@@ -29,6 +30,10 @@ AFA_LIMIT_PAISE = 15_000_00       # RBI e-mandate AFA threshold
 LLM_MIN_CONFIDENCE = 0.85
 
 ALLOW, DENY, HOLD, ESCALATE = "ALLOW", "DENY", "HOLD", "ESCALATE"
+
+# Authority states in which the fuzzy matcher may not auto-resolve. Derived
+# from authority.py rather than restated, so the two cannot drift apart.
+REVOKED_AUTHORITY_STATES = frozenset(state.value for state in REVOKED_STATES)
 
 
 @dataclass
@@ -127,6 +132,23 @@ def _r1(verdict: Verdict) -> Decision | None:
 def evaluate(order: Order, verdict: OrderVerdict, action_type: str,
              attempts_so_far: int, contacts_7d: int,
              llm_confidence: float | None = None) -> Decision:
+    # R0 — drift kill switch. Runs ahead of R1 because it does not ask what to
+    # do about a verdict, it asks whether the verdict may be relied on at all.
+    # The live stream stopped resembling the batch the matcher was fitted on,
+    # so its score is no longer evidence of anything, in either direction: a
+    # probabilistic "paid" is no longer a safe reason to stay silent, and a
+    # probabilistic "unpaid" is no longer a safe reason to chase. Both become a
+    # human's problem. HOLD, never ALLOW -- revoking authority can only ever
+    # remove actions. Exact proofs are untouched: a UTR join or a settlement
+    # sum never depended on a fitted threshold, which is the whole reason the
+    # system keeps the two paths apart.
+    if (verdict.evidence.automation_path == "probabilistic"
+            and verdict.evidence.authority_state in REVOKED_AUTHORITY_STATES):
+        return Decision(HOLD, "R_DRIFT_HALT",
+                        f"authority {verdict.evidence.authority_state}: distribution shift "
+                        "revoked the fitted threshold — this verdict needs a human, "
+                        "exact-path verdicts continue unaffected")
+
     # R1 — taxonomy gate: exactly one declared disposition per verdict (FR-3.1)
     gate = _r1(verdict.verdict)
     if gate is not None:
