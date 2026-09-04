@@ -99,6 +99,21 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_import_statement(args) -> int:
+    from .parsers import StatementError, parse_statement, write_bank_csv
+    try:
+        txns = parse_statement(args.file, bank=args.bank)
+    except StatementError as exc:
+        print(f"import failed: {exc}")
+        return 1
+    path = write_bank_csv(txns, args.out)
+    credits = sum(1 for t in txns if t.credit_debit == "credit")
+    print(f"parsed {len(txns)} rows ({credits} credits) -> {os.path.abspath(path)}")
+    print(f"  python -m ledger_daemon reconcile --dir {args.out}")
+    print(f"  python -m ledger_daemon ui --dir {args.out}")
+    return 0
+
+
 def cmd_ui(args) -> int:
     from .ui import serve
     p = _paths(args.out)
@@ -348,6 +363,12 @@ def main(argv=None) -> int:
     d.add_argument("--profile", choices=["clean", "stress"], default="clean",
                    help="stress = typo'd/truncated narrations + amount-collision decoys")
     d.set_defaults(fn=cmd_demo)
+
+    ist = sub.add_parser("import-statement", help="parse a real bank statement export (HDFC/ICICI/canonical) into a batch dir")
+    ist.add_argument("file", help="path to the statement CSV export")
+    ist.add_argument("--out", default=os.path.join("data", "live"))
+    ist.add_argument("--bank", choices=["auto", "hdfc", "icici", "canonical"], default="auto")
+    ist.set_defaults(fn=cmd_import_statement)
 
     u = sub.add_parser("ui", help="serve the one-screen chase list on localhost")
     u.add_argument("--seed", type=int, default=42)

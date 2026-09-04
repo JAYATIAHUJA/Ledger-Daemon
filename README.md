@@ -12,11 +12,12 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (66 tests, ~7 s).
+One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (73 tests, ~7 s).
 
 ```bash
 python -m ledger_daemon ui          # the chase list: one screen, three columns, localhost
 python -m ledger_daemon ingest      # pull real Razorpay test-mode data (needs test keys)
+python -m ledger_daemon import-statement bank.csv   # parse a real HDFC/ICICI statement export
 python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
 python -m ledger_daemon ablate      # 5-config ablation ladder + risk-coverage curve
 python -m ledger_daemon crosscheck  # independent splink cross-check of the matcher
@@ -163,6 +164,8 @@ It injects an unhandled verdict into the live enum and shows the policy engine r
 ## Real data in (test mode)
 
 `python -m ledger_daemon ingest` pulls `/v1/orders`, `/v1/payments` and `/v1/settlements` from Razorpay test mode (same env keys as the executor; live-mode keys are refused by design) and writes the canonical batch CSVs, so `reconcile` and `ui` run unchanged on real gateway records. Stated plainly in the module: orders and payments are real; processed settlements stand in for the bank feed until a statement export replaces them; and no ground truth is written, because real data has no oracle.
+
+`python -m ledger_daemon import-statement <file>` completes the triangle: it parses a real HDFC or ICICI netbanking CSV export (auto-detected from the header, preamble lines skipped, amounts string-parsed straight to integer paise — the no-float contract holds at the ingestion boundary too) and replaces the batch's bank feed, UTRs recovered from the reference column or the narration itself. Unrecognised headers fail loudly instead of guessing; `--bank` forces a shape when detection is wrong.
 
 ## MCP surface (6 tools)
 
