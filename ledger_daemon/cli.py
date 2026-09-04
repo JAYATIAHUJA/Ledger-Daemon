@@ -17,6 +17,7 @@ from .executor import Executor, default_adapter
 from .models import Verdict
 from .money import rupees_str
 from .recon import calibrate, reconcile
+from .robustness import CAL_SEED_OFFSET, assert_disjoint_seeds
 
 
 def _paths(root: str) -> dict:
@@ -35,8 +36,10 @@ def cmd_demo(args) -> int:
     p = _paths(root)
 
     profile = getattr(args, "profile", "clean")
-    print(f"[1/6] generating calibration batch (seed={args.seed + 1000}, n={args.n}, profile={profile}) ...")
-    generate(args.seed + 1000, args.n, p["cal_batch"], profile)
+    cal_seed = args.seed + CAL_SEED_OFFSET
+    assert_disjoint_seeds(cal_seed, args.seed)
+    print(f"[1/6] generating calibration batch (seed={cal_seed}, n={args.n}, profile={profile}) ...")
+    generate(cal_seed, args.n, p["cal_batch"], profile)
     cal = load_batch(p["cal_batch"])
     q_hat, fs_model, cal_probs = calibrate(cal[0], cal[1], cal[2], cal[3])
     print(f"      conformal q_hat = {q_hat:.4f} from {len(cal_probs)} labelled true matches (alpha=0.01)")
@@ -96,11 +99,38 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_sweep(args) -> int:
+    from .robustness import render, run_sweep
+
+    profile = getattr(args, "profile", "clean")
+    seeds = [args.start + i for i in range(args.seeds)]
+    print(f"sweeping {len(seeds)} unseen seeds (n={args.n}, profile={profile}); "
+          "q_hat is re-derived per seed, nothing is refitted by hand ...")
+    t0 = time.perf_counter()
+    rows = run_sweep(seeds, args.n, profile)
+    for r in rows:
+        print(f"  seed {r['seed']:>5}  DCPR {r['dcpr']:6.1%}  "
+              f"false-hold {r['false_hold_rate']:6.1%}  match {r['match_rate']:6.1%}  "
+              f"wrongly chased {rupees_str(r['ld_wrong_paise'])}")
+    body = render(rows, args.n, profile)
+    p = _paths(args.out)
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    suffix = "" if profile == "clean" else f"-{profile}"
+    out_path = os.path.join(p["eval_dir"], f"robustness{suffix}.md")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    print()
+    print(body)
+    print(f"wrote {out_path}  ({time.perf_counter() - t0:.1f}s)")
+    return 0
+
+
 def cmd_ablate(args) -> int:
     from .ablation import render, run_ablation, sweep_alpha
     p = _paths(args.out)
     profile = getattr(args, "profile", "clean")
-    generate(args.seed + 1000, args.n, p["cal_batch"], profile)
+    assert_disjoint_seeds(args.seed + CAL_SEED_OFFSET, args.seed)
+    generate(args.seed + CAL_SEED_OFFSET, args.n, p["cal_batch"], profile)
     cal = load_batch(p["cal_batch"])
     q_hat, fs_model, cal_probs = calibrate(cal[0], cal[1], cal[2], cal[3])
     generate(args.seed, args.n, p["eval_batch"], profile)
@@ -272,6 +302,14 @@ def main(argv=None) -> int:
     d.add_argument("--profile", choices=["clean", "stress"], default="clean",
                    help="stress = typo'd/truncated narrations + amount-collision decoys")
     d.set_defaults(fn=cmd_demo)
+
+    sw = sub.add_parser("sweep", help="re-run the whole pipeline on N unseen seeds")
+    sw.add_argument("--seeds", type=int, default=20, help="how many seeds to sweep")
+    sw.add_argument("--start", type=int, default=100, help="first seed (default 100, well clear of the committed 42)")
+    sw.add_argument("--n", type=int, default=500)
+    sw.add_argument("--out", default="out")
+    sw.add_argument("--profile", choices=["clean", "stress"], default="clean")
+    sw.set_defaults(fn=cmd_sweep)
 
     ab = sub.add_parser("ablate", help="5-config ablation ladder + conformal risk-coverage curve")
     ab.add_argument("--seed", type=int, default=42)
