@@ -1,0 +1,326 @@
+"""CLI: `python -m ledger_daemon demo --seed 42 --n 500` runs the whole thing
+offline in one command (AC-1). Also: generate | reconcile | explain | audit | mcp.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+
+from . import agent, policy
+from .datagen import generate, load_batch
+from .evaluate import evaluate, render_exceptions, render_report, run_ledger_daemon
+from .executor import Executor, default_adapter
+from .models import Verdict
+from .money import rupees_str
+from .recon import calibrate, reconcile
+
+
+def _paths(root: str) -> dict:
+    return {
+        "eval_batch": os.path.join(root, "data", "batch"),
+        "cal_batch": os.path.join(root, "data", "calibration"),
+        "eval_dir": os.path.join(root, "eval"),
+        "db": os.path.join(root, "ledger.sqlite3"),
+        "drafts": os.path.join(root, "drafts"),
+    }
+
+
+def cmd_demo(args) -> int:
+    t0 = time.perf_counter()
+    root = args.out
+    p = _paths(root)
+
+    profile = getattr(args, "profile", "clean")
+    print(f"[1/6] generating calibration batch (seed={args.seed + 1000}, n={args.n}, profile={profile}) ...")
+    generate(args.seed + 1000, args.n, p["cal_batch"], profile)
+    cal = load_batch(p["cal_batch"])
+    q_hat, fs_model, cal_probs = calibrate(cal[0], cal[1], cal[2], cal[3])
+    print(f"      conformal q_hat = {q_hat:.4f} from {len(cal_probs)} labelled true matches (alpha=0.01)")
+
+    print(f"[2/6] generating evaluation batch (seed={args.seed}, n={args.n}) ...")
+    generate(args.seed, args.n, p["eval_batch"], profile)
+    orders, captures, bank, truth = load_batch(p["eval_batch"])
+
+    print("[3/6] reconciling (deterministic, zero LLM) ...")
+    result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model)
+
+    print("[4/6] policy gate + executor (idempotent, append-only audit) ...")
+    if os.path.exists(p["db"]):
+        os.remove(p["db"])
+    execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
+    ld, decisions = run_ledger_daemon(orders, result)
+    orders_by_id = {o.order_id: o for o in orders}
+    executed = 0
+    for oid in sorted(ld.chased):
+        o = orders_by_id[oid]
+        v = result.verdicts[oid]
+        amount = v.delta_due_paise or o.amount_paise
+        execu.execute(o, "CREATE_PAYMENT_LINK", amount, decisions[oid].rule_fired)
+        execu.execute(o, "DRAFT_REMINDER", amount, decisions[oid].rule_fired)
+        executed += 1
+    print(f"      {executed} orders actioned via {execu.adapter.name} adapter; "
+          f"{len(orders) - executed} blocked or held")
+
+    print("[5/6] sandboxed proposal layer on AMBIGUOUS orders ...")
+    proposals = []
+    for oid in result.exception_ids:
+        v = result.verdicts[oid]
+        prop = agent.propose(oid, v.reason, v.evidence_refs)
+        proposals.append(prop)
+        execu.audit_write(
+            f"prop_{oid}", "agent", "llm-proposal", oid,
+            {"reason": v.reason}, prop.to_dict(),
+            "R7" if prop.confidence < policy.LLM_MIN_CONFIDENCE else "R_ALLOW",
+            "PROPOSED", 0)
+    held = sum(1 for pr in proposals if pr.confidence < policy.LLM_MIN_CONFIDENCE)
+    print(f"      {len(proposals)} proposals, {held} held for human (confidence < 0.85)")
+
+    print("[6/6] evaluation harness ...")
+    report = evaluate(args.seed, orders, captures, result, truth)
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    suffix = "" if profile == "clean" else f"-{profile}"
+    body = render_report(report, date=f"profile={profile}" if profile != "clean" else "")
+    with open(os.path.join(p["eval_dir"], f"results{suffix}.md"), "w", encoding="utf-8") as fh:
+        fh.write("```\n" + body + "```\n")
+    with open(os.path.join(p["eval_dir"], f"exceptions{suffix}.md"), "w", encoding="utf-8") as fh:
+        fh.write(render_exceptions(report))
+
+    print()
+    print(body)
+    print(f"total wall time: {time.perf_counter() - t0:.1f}s  "
+          f"(artifacts in {os.path.abspath(root)})")
+    return 0
+
+
+def cmd_ablate(args) -> int:
+    from .ablation import render, run_ablation, sweep_alpha
+    p = _paths(args.out)
+    profile = getattr(args, "profile", "clean")
+    generate(args.seed + 1000, args.n, p["cal_batch"], profile)
+    cal = load_batch(p["cal_batch"])
+    q_hat, fs_model, cal_probs = calibrate(cal[0], cal[1], cal[2], cal[3])
+    generate(args.seed, args.n, p["eval_batch"], profile)
+    orders, captures, bank, truth = load_batch(p["eval_batch"])
+    print(f"running 5-config ablation ladder (profile={profile}) ...")
+    rows = run_ablation(args.seed, orders, captures, bank, truth, q_hat, fs_model)
+    print("sweeping conformal alpha for the risk-coverage curve ...")
+    sweep = sweep_alpha(args.seed, orders, captures, bank, truth, cal_probs, fs_model)
+    body = render(rows, sweep, args.seed, args.n, profile)
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    suffix = "" if profile == "clean" else f"-{profile}"
+    out_path = os.path.join(p["eval_dir"], f"ablation{suffix}.md")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    print()
+    print(body)
+    print(f"wrote {out_path}")
+    return 0
+
+
+def cmd_agent_eval(args) -> int:
+    """Score the sandboxed LLM proposal layer against ground truth on the
+    exception list. With no local model the fallback is what gets measured —
+    the layer is an evaluated component either way, never a mascot."""
+    p = _paths(args.out)
+    if not os.path.exists(os.path.join(p["eval_batch"], "merchant_orders.csv")):
+        generate(args.seed, args.n, p["eval_batch"], getattr(args, "profile", "clean"))
+    orders, captures, bank, truth = load_batch(p["eval_batch"])
+    result = reconcile(orders, captures, bank)
+    backend = "ollama" if os.environ.get("LEDGER_DAEMON_LLM") == "ollama" else "deterministic fallback"
+    rows, correct, actionable, held = [], 0, 0, 0
+    for oid in result.exception_ids:
+        v = result.verdicts[oid]
+        prop = agent.propose(oid, f"{v.reason}. Evidence: {v.evidence.detail}", v.evidence_refs)
+        truth_v = truth.get(oid, {}).get("true_verdict", "?")
+        ok = prop.proposed_verdict == truth_v
+        correct += ok
+        if prop.confidence >= policy.LLM_MIN_CONFIDENCE:
+            actionable += 1
+        else:
+            held += 1
+        rows.append(f"| {oid} | {truth_v} | {prop.proposed_verdict} | "
+                    f"{prop.confidence:.2f} | {'yes' if ok else 'no'} |")
+    n = len(result.exception_ids)
+    body = "\n".join([
+        f"# Proposal-layer evaluation  (backend: {backend}, seed={args.seed}, n={args.n})", "",
+        f"- Exceptions evaluated: {n}",
+        f"- Proposals agreeing with ground truth: {correct}/{n}"
+        + (f" ({correct / n:.0%})" if n else ""),
+        f"- Proposals above the R7 confidence bar (0.85): {actionable}",
+        f"- Held for human by R7: {held}",
+        "",
+        "Even a perfect proposal changes nothing directly: proposals are input to the",
+        "policy gate (FR-4.5), and anything under 0.85 confidence is held for a human.", "",
+        "| order | ground truth | proposed | confidence | correct |",
+        "|---|---|---|---|---|",
+        *rows,
+    ]) + "\n"
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    out_path = os.path.join(p["eval_dir"], "agent-eval.md")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    print(body)
+    print(f"wrote {out_path}")
+    if backend != "ollama":
+        print("\n(no local model: set LEDGER_DAEMON_LLM=ollama with Ollama running to "
+              "score a real model; the fallback's honest abstention is what was measured)")
+    return 0
+
+
+def cmd_crosscheck(args) -> int:
+    from .crosscheck import run_crosscheck
+    p = _paths(args.out)
+    if not os.path.exists(os.path.join(p["eval_batch"], "merchant_orders.csv")):
+        generate(args.seed, args.n, p["eval_batch"], getattr(args, "profile", "clean"))
+    print("running splink cross-check (independent Fellegi-Sunter + EM) ...")
+    body = run_crosscheck(p["eval_batch"])
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    out_path = os.path.join(p["eval_dir"], "crosscheck.md")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    print()
+    print(body)
+    print(f"wrote {out_path}")
+    return 0
+
+
+def cmd_generate(args) -> int:
+    paths = generate(args.seed, args.n, args.out)
+    for name, path in paths.items():
+        print(f"wrote {path}")
+    return 0
+
+
+def cmd_reconcile(args) -> int:
+    orders, captures, bank, truth = load_batch(args.batch)
+    result = reconcile(orders, captures, bank)
+    counts: dict[str, int] = {}
+    for v in result.verdicts.values():
+        counts[v.verdict.value] = counts.get(v.verdict.value, 0) + 1
+    print(json.dumps({
+        "orders": len(orders),
+        "verdict_counts": dict(sorted(counts.items())),
+        "exceptions": result.exception_ids,
+        "orders_per_sec": result.orders_per_sec,
+    }, indent=2))
+    return 0
+
+
+def cmd_explain(args) -> int:
+    orders, captures, bank, truth = load_batch(args.batch)
+    result = reconcile(orders, captures, bank)
+    v = result.verdicts.get(args.order_id)
+    if v is None:
+        print(f"unknown order {args.order_id}", file=sys.stderr)
+        return 1
+    print(render_explain(v))
+    return 0
+
+
+def render_explain(v) -> str:
+    lines = [
+        f"order      : {v.order_id}",
+        f"verdict    : {v.verdict.value}",
+        f"pass used  : {v.evidence.pass_used}",
+        f"evidence   : {', '.join(v.evidence_refs) or '(none)'}",
+        f"detail     : {v.evidence.detail}",
+        f"reason     : {v.reason}",
+    ]
+    if v.money_received_paise:
+        lines.append(f"received   : {rupees_str(v.money_received_paise)}")
+    if v.delta_due_paise:
+        lines.append(f"delta due  : {rupees_str(v.delta_due_paise)}")
+    if v.evidence.weight_waterfall:
+        lines.append("weight waterfall (Fellegi-Sunter, log2 units):")
+        for label, w in v.evidence.weight_waterfall:
+            lines.append(f"  {label:<55} {w:>7}")
+        if v.p_match:
+            lines.append(f"  {'P(match) = 1/(1+2^-total)':<55} {v.p_match:>7}")
+    return "\n".join(lines)
+
+
+def cmd_audit(args) -> int:
+    execu = Executor(args.db)
+    rows = execu.audit(args.order_id)
+    print(json.dumps(rows, indent=2))
+    return 0
+
+
+def cmd_mcp(args) -> int:
+    from .mcp_server import main as mcp_main
+    return mcp_main(args.root)
+
+
+def main(argv=None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252; ₹ needs UTF-8
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    ap = argparse.ArgumentParser(prog="ledger-daemon",
+                                 description="Never chase money you already have.")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    d = sub.add_parser("demo", help="end-to-end offline demo: generate, reconcile, gate, execute, evaluate")
+    d.add_argument("--seed", type=int, default=42)
+    d.add_argument("--n", type=int, default=500)
+    d.add_argument("--out", default="out")
+    d.add_argument("--profile", choices=["clean", "stress"], default="clean",
+                   help="stress = typo'd/truncated narrations + amount-collision decoys")
+    d.set_defaults(fn=cmd_demo)
+
+    ab = sub.add_parser("ablate", help="5-config ablation ladder + conformal risk-coverage curve")
+    ab.add_argument("--seed", type=int, default=42)
+    ab.add_argument("--n", type=int, default=500)
+    ab.add_argument("--out", default="out")
+    ab.add_argument("--profile", choices=["clean", "stress"], default="clean")
+    ab.set_defaults(fn=cmd_ablate)
+
+    ae = sub.add_parser("agent-eval", help="score the LLM proposal layer against ground truth on exceptions")
+    ae.add_argument("--seed", type=int, default=42)
+    ae.add_argument("--n", type=int, default=500)
+    ae.add_argument("--out", default="out")
+    ae.add_argument("--profile", choices=["clean", "stress"], default="clean")
+    ae.set_defaults(fn=cmd_agent_eval)
+
+    cc = sub.add_parser("crosscheck", help="independent splink (MoJ) cross-check of the matcher")
+    cc.add_argument("--seed", type=int, default=42)
+    cc.add_argument("--n", type=int, default=500)
+    cc.add_argument("--out", default="out")
+    cc.add_argument("--profile", choices=["clean", "stress"], default="clean")
+    cc.set_defaults(fn=cmd_crosscheck)
+
+    g = sub.add_parser("generate", help="write the four synthetic CSVs")
+    g.add_argument("--seed", type=int, default=42)
+    g.add_argument("--n", type=int, default=500)
+    g.add_argument("--out", default="out/data/batch")
+    g.set_defaults(fn=cmd_generate)
+
+    r = sub.add_parser("reconcile", help="reconcile a batch directory")
+    r.add_argument("--batch", default="out/data/batch")
+    r.set_defaults(fn=cmd_reconcile)
+
+    e = sub.add_parser("explain", help="evidence chain for one order")
+    e.add_argument("order_id")
+    e.add_argument("--batch", default="out/data/batch")
+    e.set_defaults(fn=cmd_explain)
+
+    a = sub.add_parser("audit", help="append-only audit trail for one order")
+    a.add_argument("order_id")
+    a.add_argument("--db", default="out/ledger.sqlite3")
+    a.set_defaults(fn=cmd_audit)
+
+    m = sub.add_parser("mcp", help="run the MCP server (stdio)")
+    m.add_argument("--root", default="out")
+    m.set_defaults(fn=cmd_mcp)
+
+    args = ap.parse_args(argv)
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
