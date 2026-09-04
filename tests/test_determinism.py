@@ -1,6 +1,7 @@
 """Same seed -> byte-identical files and identical report hash (FR-1.2, NFR-3)."""
 
 import hashlib
+import json
 import os
 
 from ledger_daemon.datagen import generate, load_batch
@@ -40,3 +41,16 @@ def test_same_seed_identical_report_hash(tmp_path):
         body = "\n".join(l for l in body.splitlines() if not l.startswith("Throughput"))
         digests.add(hashlib.sha256(body.encode()).hexdigest())
     assert len(digests) == 1
+
+
+def test_generated_batch_emits_complete_source_provenance(tmp_path):
+    out = tmp_path / "batch"
+    generate(42, 100, str(out))
+
+    manifest = json.loads((out / "source_manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest["schema_version"] == "1"
+    assert manifest["sources"]["order"]["accepted"] == 100
+    assert len(manifest["sources"]["order"]["source_hashes"]) == 100
+    assert manifest["sources"]["capture"]["quarantined"] == 0
+    assert manifest["sources"]["bank_txn"]["quarantined"] == 0

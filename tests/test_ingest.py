@@ -1,5 +1,8 @@
 """API-to-canonical mapping is pure and testable without a network."""
 
+import importlib
+import json
+
 import pytest
 
 from ledger_daemon.datagen import load_batch
@@ -7,6 +10,7 @@ from ledger_daemon.ingest import (
     IngestError, _credentials, bank_row, capture_row, order_row, write_batch,
 )
 from ledger_daemon.recon import reconcile
+from ledger_daemon.source_contracts import SourceValidationError
 
 API_ORDER = {
     "id": "order_NXhT2sWnEK", "amount": 500_000, "currency": "INR",
@@ -76,3 +80,95 @@ def test_live_mode_keys_are_refused(monkeypatch):
     monkeypatch.setenv("RZP_TEST_KEY_SECRET", "s3cret")
     with pytest.raises(IngestError, match="test mode"):
         _credentials()
+
+
+def test_batch_writer_quarantines_invalid_rows_and_emits_provenance(tmp_path):
+    valid = order_row(API_ORDER)
+    invalid = {**valid, "order_id": "order_bad", "amount_paise": 10.5}
+
+    write_batch(
+        str(tmp_path),
+        [valid, invalid],
+        [capture_row(API_PAYMENT)],
+        [bank_row(API_SETTLEMENT)],
+    )
+
+    orders, captures, bank, _truth = load_batch(str(tmp_path))
+    assert [row.order_id for row in orders] == [API_ORDER["id"]]
+    assert len(captures) == 1
+    assert len(bank) == 1
+
+    manifest = json.loads((tmp_path / "source_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "1"
+    assert manifest["sources"]["order"]["accepted"] == 1
+    assert manifest["sources"]["order"]["quarantined"] == 1
+    assert len(manifest["sources"]["order"]["source_hashes"]) == 1
+
+    quarantined = json.loads((tmp_path / "quarantine.jsonl").read_text(encoding="utf-8"))
+    assert quarantined["error_code"] == "FLOAT_MONEY"
+
+
+@pytest.mark.parametrize(
+    ("mapper", "payload"),
+    [
+        (order_row, {**API_ORDER, "amount": 500_000.5}),
+        (capture_row, {**API_PAYMENT, "fee": 10_000.5}),
+        (bank_row, {**API_SETTLEMENT, "amount": 488_200.5}),
+    ],
+)
+def test_api_mappers_never_truncate_float_money(mapper, payload):
+    with pytest.raises(SourceValidationError) as exc:
+        mapper(payload)
+
+    assert exc.value.code == "FLOAT_MONEY"
+
+
+@pytest.mark.parametrize(
+    ("mapper", "payload"),
+    [
+        (order_row, {**API_ORDER, "created_at": None}),
+        (capture_row, {**API_PAYMENT, "created_at": None}),
+        (bank_row, {**API_SETTLEMENT, "created_at": None}),
+    ],
+)
+def test_api_mappers_never_invent_epoch_for_missing_dates(mapper, payload):
+    with pytest.raises(SourceValidationError) as exc:
+        mapper(payload)
+
+    assert exc.value.code == "MISSING_DATE"
+
+
+def test_ingest_quarantines_bad_api_items_without_dropping_valid_items(tmp_path, monkeypatch):
+    module = importlib.import_module("ledger_daemon.ingest")
+    by_entity = {
+        "orders": [
+            API_ORDER,
+            {**API_ORDER, "id": "order_bad", "amount": 10.5},
+            {**API_ORDER, "receipt": "DUPLICATE-ID", "amount": 600_000},
+        ],
+        "payments": [API_PAYMENT],
+        "settlements": [API_SETTLEMENT],
+    }
+    monkeypatch.setattr(module, "_credentials", lambda: ("rzp_test_key", "secret"))
+    monkeypatch.setattr(
+        module,
+        "fetch_all",
+        lambda entity, _key, _secret, _limit: by_entity[entity],
+    )
+
+    counts = module.ingest(str(tmp_path), limit=10)
+
+    assert counts["orders"] == 1
+    assert counts["captures"] == 1
+    assert counts["bank"] == 1
+    assert counts["quarantined"] == 2
+    orders, _captures, _bank, _truth = load_batch(str(tmp_path))
+    assert [order.order_id for order in orders] == [API_ORDER["id"]]
+    records = [
+        json.loads(line)
+        for line in (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert {record["error_code"] for record in records} == {"FLOAT_MONEY", "DUPLICATE_ID"}
+    quarantine_text = (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8")
+    assert "SHARMA TEXTILES PVT LTD" not in quarantine_text
+    assert "CUST-9" not in quarantine_text

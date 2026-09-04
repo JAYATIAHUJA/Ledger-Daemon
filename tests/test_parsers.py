@@ -1,5 +1,7 @@
 """Statement parsing: real export shapes in, integer paise out, no float ever."""
 
+import json
+
 import pytest
 
 from ledger_daemon.parsers import (
@@ -88,6 +90,10 @@ def test_written_csv_round_trips_through_load_batch(tmp_path):
     _orders, _caps, bank, _truth = load_batch(str(batch))
     assert len(bank) == 3
     assert bank[0].amount_paise == 1_23_456_78     # survived as integer paise
+    manifest = json.loads((batch / "source_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["sources"]["bank_txn"]["accepted"] == 3
+    assert manifest["sources"]["bank_txn"]["quarantined"] == 0
+    assert len(manifest["sources"]["bank_txn"]["source_hashes"]) == 3
 
 
 def test_unrecognised_file_fails_loudly_instead_of_guessing(tmp_path):

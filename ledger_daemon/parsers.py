@@ -29,8 +29,11 @@ from __future__ import annotations
 import csv
 import os
 import re
+from dataclasses import asdict
 
 from .models import BankTxn
+from .quarantine import QuarantineStore
+from .source_contracts import SourceKind, validate_rows, write_source_manifest
 
 _UTR_TOKEN = re.compile(r"\b([A-Z]{2,6}[0-9]{6,16}|[0-9]{12,16})\b")
 
@@ -177,12 +180,20 @@ def parse_statement(path: str, bank: str = "auto") -> list[BankTxn]:
 
 def write_bank_csv(txns: list[BankTxn], out_dir: str) -> str:
     os.makedirs(out_dir, exist_ok=True)
+    quarantine = QuarantineStore(os.path.join(out_dir, "quarantine.jsonl"))
+    accepted, summary = validate_rows(
+        SourceKind.BANK_TXN,
+        [asdict(txn) for txn in txns],
+        quarantine,
+    )
     path = os.path.join(out_dir, "bank_statement.csv")
     with open(path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh, lineterminator="\n")
         w.writerow(["txn_id", "value_date", "amount_paise", "credit_debit", "utr",
                     "narration", "balance_after"])
-        for b in txns:
-            w.writerow([b.txn_id, b.value_date, b.amount_paise, b.credit_debit,
-                        b.utr, b.narration, b.balance_after])
+        for row in accepted:
+            w.writerow([row["txn_id"], row["value_date"], row["amount_paise"],
+                        row["credit_debit"], row["utr"], row["narration"],
+                        row["balance_after"]])
+    write_source_manifest(out_dir, {SourceKind.BANK_TXN: summary})
     return path

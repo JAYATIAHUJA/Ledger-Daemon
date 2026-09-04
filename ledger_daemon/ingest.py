@@ -34,6 +34,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from .quarantine import QuarantineStore
+from .source_contracts import (
+    SourceKind, SourceValidationError, validate_row, validate_rows,
+    write_source_manifest,
+)
+
 API = "https://api.razorpay.com/v1"
 PAGE = 100
 
@@ -81,23 +87,27 @@ def fetch_all(entity: str, key_id: str, key_secret: str, limit: int = 1000) -> l
 # ---- pure mapping functions: API JSON -> canonical rows (unit-tested) -------- #
 
 def _day(epoch: int | None) -> str:
-    return time.strftime("%Y-%m-%d", time.gmtime(epoch or 0))
+    if type(epoch) is not int or epoch <= 0:
+        raise SourceValidationError("MISSING_DATE", "source created_at must be a positive epoch")
+    return time.strftime("%Y-%m-%d", time.gmtime(epoch))
 
 
 def order_row(o: dict) -> dict:
     notes = o.get("notes") or {}
     if isinstance(notes, list):
         notes = {}
-    return {
+    row = {
         "order_id": o["id"],
         "invoice_no": o.get("receipt") or o["id"],
         "customer_id": notes.get("customer_id", ""),
         "customer_name": notes.get("customer_name", ""),
-        "amount_paise": int(o["amount"]),          # API amounts are already paise
+        "amount_paise": o["amount"],               # API amounts are already paise
         "due_date": _day(o.get("created_at")),
         "status": "paid" if o.get("status") == "paid" else "unpaid",
         "channel_expected": "gateway",
     }
+    validate_row(SourceKind.ORDER, row)
+    return row
 
 
 _STATUS = {"captured": "captured", "failed": "failed", "refunded": "refund"}
@@ -110,59 +120,92 @@ def capture_row(p: dict) -> dict | None:
     if status is None or not p.get("order_id"):
         return None
     acquirer = p.get("acquirer_data") or {}
-    return {
+    amount = p["amount"] if status != "refund" else -p["amount"]
+    row = {
         "payment_id": p["id"],
         "order_id": p["order_id"],
-        "amount_paise": int(p["amount"]) if status != "refund" else -int(p["amount"]),
-        "fee_paise": int(p.get("fee") or 0),
-        "tax_paise": int(p.get("tax") or 0),
+        "amount_paise": amount,
+        "fee_paise": p.get("fee") or 0,
+        "tax_paise": p.get("tax") or 0,
         "status": status,
         "method": p.get("method", ""),
         "captured_at": _day(p.get("created_at")),
         "settlement_id": "",   # joined from /v1/settlements via UTR, not per-payment
         "utr": acquirer.get("utr") or acquirer.get("rrn") or "",
     }
+    validate_row(SourceKind.CAPTURE, row)
+    return row
 
 
 def bank_row(s: dict) -> dict | None:
     """A processed settlement, rendered as the bank credit it becomes."""
     if s.get("status") != "processed":
         return None
-    return {
+    row = {
         "txn_id": s["id"],
         "value_date": _day(s.get("created_at")),
-        "amount_paise": int(s["amount"]),
+        "amount_paise": s["amount"],
         "credit_debit": "credit",
         "utr": s.get("utr") or "",
         # the marker recon uses to keep settlements out of the fuzzy pool
         "narration": f"RAZORPAYSETTLEMENT {s['id']}",
         "balance_after": 0,    # a statement export carries this; settlements do not
     }
+    validate_row(SourceKind.BANK_TXN, row)
+    return row
 
 
 def write_batch(out_dir: str, orders: list[dict], captures: list[dict],
                 bank: list[dict]) -> dict[str, str]:
     os.makedirs(out_dir, exist_ok=True)
+    quarantine = QuarantineStore(os.path.join(out_dir, "quarantine.jsonl"))
     spec = [
-        ("merchant_orders.csv", orders,
+        ("merchant_orders.csv", SourceKind.ORDER, orders,
          ["order_id", "invoice_no", "customer_id", "customer_name", "amount_paise",
           "due_date", "status", "channel_expected"]),
-        ("gateway_captures.csv", captures,
+        ("gateway_captures.csv", SourceKind.CAPTURE, captures,
          ["payment_id", "order_id", "amount_paise", "fee_paise", "tax_paise",
           "status", "method", "captured_at", "settlement_id", "utr"]),
-        ("bank_statement.csv", bank,
+        ("bank_statement.csv", SourceKind.BANK_TXN, bank,
          ["txn_id", "value_date", "amount_paise", "credit_debit", "utr",
           "narration", "balance_after"]),
     ]
     paths = {}
-    for name, rows, fields in spec:
+    summaries = {}
+    for name, source, rows, fields in spec:
+        accepted, summary = validate_rows(source, rows, quarantine)
         path = os.path.join(out_dir, name)
         with open(path, "w", newline="", encoding="utf-8") as fh:
             w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
             w.writeheader()
-            w.writerows(rows)
+            w.writerows(accepted)
         paths[name] = path
+        summaries[source] = summary
+    write_source_manifest(out_dir, summaries)
     return paths
+
+
+def _map_api_rows(source: SourceKind, api_rows: list[dict], mapper,
+                  quarantine: QuarantineStore) -> tuple[list[dict], int, int]:
+    mapped: list[dict] = []
+    skipped = 0
+    quarantined = 0
+    for raw in api_rows:
+        try:
+            row = mapper(raw)
+        except SourceValidationError as exc:
+            quarantine.append(source.value, raw, exc.code, str(exc))
+            quarantined += 1
+            continue
+        except (KeyError, TypeError, ValueError) as exc:
+            quarantine.append(source.value, raw, "MALFORMED_SOURCE", type(exc).__name__)
+            quarantined += 1
+            continue
+        if row is None:
+            skipped += 1
+        else:
+            mapped.append(row)
+    return mapped, skipped, quarantined
 
 
 def ingest(out_dir: str, limit: int = 1000) -> dict[str, int]:
@@ -171,10 +214,23 @@ def ingest(out_dir: str, limit: int = 1000) -> dict[str, int]:
     api_payments = fetch_all("payments", key_id, key_secret, limit)
     api_settlements = fetch_all("settlements", key_id, key_secret, limit)
 
-    orders = [order_row(o) for o in api_orders]
-    captures = [c for c in (capture_row(p) for p in api_payments) if c]
-    bank = [b for b in (bank_row(s) for s in api_settlements) if b]
+    quarantine = QuarantineStore(os.path.join(out_dir, "quarantine.jsonl"))
+    orders, skipped_orders, q_orders = _map_api_rows(
+        SourceKind.ORDER, api_orders, order_row, quarantine)
+    captures, skipped_payments, q_payments = _map_api_rows(
+        SourceKind.CAPTURE, api_payments, capture_row, quarantine)
+    bank, unprocessed_settlements, q_settlements = _map_api_rows(
+        SourceKind.BANK_TXN, api_settlements, bank_row, quarantine)
     write_batch(out_dir, orders, captures, bank)
-    return {"orders": len(orders), "captures": len(captures), "bank": len(bank),
-            "skipped_payments": len(api_payments) - len(captures),
-            "unprocessed_settlements": len(api_settlements) - len(bank)}
+
+    with open(os.path.join(out_dir, "source_manifest.json"), encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    q_duplicates = sum(s["quarantined"] for s in manifest["sources"].values())
+    sources = manifest["sources"]
+    return {"orders": sources[SourceKind.ORDER.value]["accepted"],
+            "captures": sources[SourceKind.CAPTURE.value]["accepted"],
+            "bank": sources[SourceKind.BANK_TXN.value]["accepted"],
+            "skipped_orders": skipped_orders,
+            "skipped_payments": skipped_payments,
+            "unprocessed_settlements": unprocessed_settlements,
+            "quarantined": q_orders + q_payments + q_settlements + q_duplicates}

@@ -399,30 +399,26 @@ class _Gen:
 
 def generate(seed: int, n: int, out_dir: str, profile: str = "clean") -> dict[str, str]:
     """Write the four CSVs (FR-1.1). Returns {name: path}."""
+    from .ingest import write_batch
+
     g = _Gen(seed, n, profile)
     g.build()
-    os.makedirs(out_dir, exist_ok=True)
-    paths = {}
-
-    def write(name: str, rows: list[dict], fields: list[str]) -> None:
-        path = os.path.join(out_dir, name)
-        with open(path, "w", newline="", encoding="utf-8") as fh:
-            w = csv.DictWriter(fh, fieldnames=fields, lineterminator="\n")
-            w.writeheader()
-            w.writerows(rows)
-        paths[name] = path
-
-    write("merchant_orders.csv", [asdict(o) for o in g.orders],
-          ["order_id", "invoice_no", "customer_id", "customer_name", "amount_paise",
-           "due_date", "status", "channel_expected"])
-    write("gateway_captures.csv", [asdict(c) for c in g.captures],
-          ["payment_id", "order_id", "amount_paise", "fee_paise", "tax_paise",
-           "status", "method", "captured_at", "settlement_id", "utr"])
-    write("bank_statement.csv", [asdict(b) for b in g.bank],
-          ["txn_id", "value_date", "amount_paise", "credit_debit", "utr",
-           "narration", "balance_after"])
-    write("ground_truth.csv", g.truth,
-          ["order_id", "true_verdict", "money_received_bool", "chaseable_bool"])
+    paths = write_batch(
+        out_dir,
+        [asdict(o) for o in g.orders],
+        [asdict(c) for c in g.captures],
+        [asdict(b) for b in g.bank],
+    )
+    truth_path = os.path.join(out_dir, "ground_truth.csv")
+    with open(truth_path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["order_id", "true_verdict", "money_received_bool", "chaseable_bool"],
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(g.truth)
+    paths["ground_truth.csv"] = truth_path
     return paths
 
 

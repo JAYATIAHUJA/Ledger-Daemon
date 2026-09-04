@@ -177,6 +177,7 @@ def cmd_ingest(args) -> int:
           f"{counts['skipped_payments']} in-flight payments skipped)")
     print(f"  bank_statement.csv     {counts['bank']} settlement credits standing in "
           f"for the bank feed  ({counts['unprocessed_settlements']} unprocessed skipped)")
+    print(f"  quarantine.jsonl       {counts['quarantined']} malformed or duplicate source rows")
     print("no ground_truth.csv: real data has no oracle. next:")
     print(f"  python -m ledger_daemon reconcile --dir {args.out}")
     return 0
