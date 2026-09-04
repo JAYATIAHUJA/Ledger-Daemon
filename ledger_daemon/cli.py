@@ -99,6 +99,24 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_ingest(args) -> int:
+    from .ingest import IngestError, ingest
+    try:
+        counts = ingest(args.out, limit=args.limit)
+    except IngestError as exc:
+        print(f"ingest failed: {exc}")
+        return 1
+    print(f"wrote {os.path.abspath(args.out)}:")
+    print(f"  merchant_orders.csv    {counts['orders']} orders  (/v1/orders)")
+    print(f"  gateway_captures.csv   {counts['captures']} captures  (/v1/payments; "
+          f"{counts['skipped_payments']} in-flight payments skipped)")
+    print(f"  bank_statement.csv     {counts['bank']} settlement credits standing in "
+          f"for the bank feed  ({counts['unprocessed_settlements']} unprocessed skipped)")
+    print("no ground_truth.csv: real data has no oracle. next:")
+    print(f"  python -m ledger_daemon reconcile --dir {args.out}")
+    return 0
+
+
 def cmd_prove(args) -> int:
     from .prove import run
     return run()
@@ -307,6 +325,11 @@ def main(argv=None) -> int:
     d.add_argument("--profile", choices=["clean", "stress"], default="clean",
                    help="stress = typo'd/truncated narrations + amount-collision decoys")
     d.set_defaults(fn=cmd_demo)
+
+    ig = sub.add_parser("ingest", help="pull real Razorpay test-mode orders/payments/settlements into a batch dir")
+    ig.add_argument("--out", default=os.path.join("data", "live"))
+    ig.add_argument("--limit", type=int, default=1000, help="max rows per entity")
+    ig.set_defaults(fn=cmd_ingest)
 
     pv = sub.add_parser("prove", help="demonstrate the verdict-exhaustiveness guard firing")
     pv.set_defaults(fn=cmd_prove)
