@@ -1,4 +1,9 @@
-"""For every verdict outside the chaseable set, the decision is DENY (AC-5)."""
+"""For every verdict outside the chaseable set, the executor is unreachable (AC-5).
+
+The stop may be DENY, HOLD or ESCALATE depending on the verdict's declared
+disposition; what is invariant is that it is never ALLOW. See
+tests/test_exhaustiveness.py for the disposition table itself.
+"""
 
 from ledger_daemon import policy
 from ledger_daemon.models import CHASEABLE_VERDICTS, Evidence, Order, OrderVerdict, Verdict
@@ -9,7 +14,7 @@ def _order():
                  "2026-08-10", "unpaid", "gateway")
 
 
-def test_non_chaseable_always_denied():
+def test_non_chaseable_never_reaches_allow():
     o = _order()
     for verdict in Verdict:
         v = OrderVerdict("ORD-1", verdict, [], Evidence("test"))
@@ -17,8 +22,8 @@ def test_non_chaseable_always_denied():
         if verdict in CHASEABLE_VERDICTS:
             assert d.outcome == policy.ALLOW, verdict
         else:
-            assert d.outcome == policy.DENY, verdict
-            assert d.rule_fired == "R1"
+            assert d.outcome in (policy.DENY, policy.HOLD, policy.ESCALATE), verdict
+            assert d.rule_fired.startswith("R1_"), verdict
 
 
 def test_r2_absence_of_evidence_holds():
