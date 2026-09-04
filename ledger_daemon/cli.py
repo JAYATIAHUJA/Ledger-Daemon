@@ -99,6 +99,29 @@ def cmd_demo(args) -> int:
     return 0
 
 
+def cmd_ui(args) -> int:
+    from .ui import serve
+    p = _paths(args.out)
+    if args.dir:
+        orders, captures, bank, _truth = load_batch(args.dir)
+        result = reconcile(orders, captures, bank, q_hat=0.001)
+        source = f"live batch: {os.path.abspath(args.dir)}"
+    else:
+        assert_disjoint_seeds(args.seed + CAL_SEED_OFFSET, args.seed)
+        generate(args.seed + CAL_SEED_OFFSET, args.n, p["cal_batch"])
+        cal = load_batch(p["cal_batch"])
+        q_hat, fs_model, _probs = calibrate(cal[0], cal[1], cal[2], cal[3])
+        generate(args.seed, args.n, p["eval_batch"])
+        orders, captures, bank, _truth = load_batch(p["eval_batch"])
+        result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model)
+        source = f"synthetic world, seed {args.seed}, n={args.n}"
+    _ld, decisions = run_ledger_daemon(orders, result)
+    execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
+    serve(orders, result.verdicts, decisions, execu, source,
+          port=args.port, open_browser=not args.no_browser)
+    return 0
+
+
 def cmd_ingest(args) -> int:
     from .ingest import IngestError, ingest
     try:
@@ -325,6 +348,15 @@ def main(argv=None) -> int:
     d.add_argument("--profile", choices=["clean", "stress"], default="clean",
                    help="stress = typo'd/truncated narrations + amount-collision decoys")
     d.set_defaults(fn=cmd_demo)
+
+    u = sub.add_parser("ui", help="serve the one-screen chase list on localhost")
+    u.add_argument("--seed", type=int, default=42)
+    u.add_argument("--n", type=int, default=500)
+    u.add_argument("--dir", default="", help="reconcile this batch dir (e.g. an ingested live one) instead of a synthetic world")
+    u.add_argument("--out", default="out")
+    u.add_argument("--port", type=int, default=7042)
+    u.add_argument("--no-browser", action="store_true")
+    u.set_defaults(fn=cmd_ui)
 
     ig = sub.add_parser("ingest", help="pull real Razorpay test-mode orders/payments/settlements into a batch dir")
     ig.add_argument("--out", default=os.path.join("data", "live"))

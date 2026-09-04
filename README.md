@@ -12,9 +12,11 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (53 tests, ~5 s).
+One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (66 tests, ~7 s).
 
 ```bash
+python -m ledger_daemon ui          # the chase list: one screen, three columns, localhost
+python -m ledger_daemon ingest      # pull real Razorpay test-mode data (needs test keys)
 python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
 python -m ledger_daemon ablate      # 5-config ablation ladder + risk-coverage curve
 python -m ledger_daemon crosscheck  # independent splink cross-check of the matcher
@@ -147,6 +149,20 @@ python -m ledger_daemon prove
 It injects an unhandled verdict into the live enum and shows the policy engine refusing to load. This is the layer that turned the taxonomy from documentation into a constraint — and it is not hypothetical: `PAID_NET_OF_TDS`, the tenth verdict, was added through exactly this gate.
 
 **"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught a real divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
+
+## The chase list (one screen)
+
+`python -m ledger_daemon ui` serves a single local page — stdlib `http.server`, inline CSS/JS, no CDN, fully offline:
+
+- **SAFE TO CHASE** — proven unpaid, every gate passed; the executor acts on these.
+- **BLOCKED** — customers a naive duner would have chased, wrongly, with the rupees protected and the exact rule that fired on every row. Orders where books and bank simply agree are counted in the footer, not shown — BLOCKED means *saves*, not routine agreement.
+- **NEEDS YOU** — the honest abstentions, each resolvable in one click: *payment received* blocks the chase, *nothing arrived* releases it. Every click lands in the same append-only sqlite audit trail as the machine's decisions, idempotently — a resolution is evidence recorded, not a state silently mutated.
+
+`--dir data/live` points the same screen at an ingested real-data batch.
+
+## Real data in (test mode)
+
+`python -m ledger_daemon ingest` pulls `/v1/orders`, `/v1/payments` and `/v1/settlements` from Razorpay test mode (same env keys as the executor; live-mode keys are refused by design) and writes the canonical batch CSVs, so `reconcile` and `ui` run unchanged on real gateway records. Stated plainly in the module: orders and payments are real; processed settlements stand in for the bank feed until a statement export replaces them; and no ground truth is written, because real data has no oracle.
 
 ## MCP surface (6 tools)
 
