@@ -37,6 +37,21 @@ CREATE TABLE IF NOT EXISTS audit (
 """
 
 
+class LedgerConnection(sqlite3.Connection):
+    """A transaction context that also closes its file handle on exit.
+
+    ``sqlite3.Connection.__exit__`` commits or rolls back but does not close.
+    Most stores use ``with connect(...)`` and require both behaviours,
+    especially on Windows where an unclosed handle prevents atomic replacement.
+    """
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def connect(db_path: str) -> sqlite3.Connection:
     """The one way this codebase opens its ledger database.
 
@@ -45,7 +60,7 @@ def connect(db_path: str) -> sqlite3.Connection:
     pragma in one place stops a future table from quietly getting weaker
     guarantees than the audit log it sits next to.
     """
-    conn = sqlite3.connect(db_path, timeout=30)
+    conn = sqlite3.connect(db_path, timeout=30, factory=LedgerConnection)
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
 

@@ -52,6 +52,15 @@ CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events app
         ├─ BEGIN IMMEDIATE: version check + event insert + state write in one txn
         ├─ target not in LEGAL_TRANSITIONS[state] -> IllegalTransition, nothing written
         └─ stale expected_version -> VersionConflict (UI 409, MCP error_type)
+
+verified human resolution + bounded rule suggestion
+   │
+   ▼
+RuleStore: PROPOSED -> authenticated replay -> REPLAY_PASSED
+   ├─ any new wrong paise/verdict, invalid proof, or coverage regression -> REJECTED
+   ├─ approval before replay -> rejected
+   └─ separate reviewer capability -> APPROVED -> ACTIVE
+        └─ store-issued activation receipt binds exact history into copied ReconConfig
 ```
 
 ## Module map
@@ -81,6 +90,7 @@ CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events app
 | `risk_control.py` | rupee-weighted authorization; a threshold with a loss budget |
 | `rules.py` | learned rules as versioned data; no `eval`, no code path |
 | `replay.py` | zero-regression replay gate before any rule activates |
+| `rule_demo.py` | executable rule lifecycle evidence: bypass rejection, replay, approval, activation |
 | `evidence_reader.py` | typed span extraction; the only vocabulary a model gets |
 | `model_adapters.py` | optional challenger readers, default off, abstain on failure |
 | `model_benchmark.py` | labelled character-span benchmark and the adapter gate |
@@ -90,7 +100,7 @@ CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events app
 | `panels.py` | what the operations screen knows, gathered once from the run |
 | `ui.py` | the operations screen: close, chase list, proofs, cases, risk, audit |
 | `mcp_server.py` | 8 MCP tools (FastMCP or stdio fallback) |
-| `cli.py` | judge / demo / ui / reconcile / explain / verify-proof / audit / mcp |
+| `cli.py` | judge / demo / learn-rule-demo / ui / reconcile / explain / verify-proof / audit / mcp |
 
 ## The three authorities, and what can revoke each
 

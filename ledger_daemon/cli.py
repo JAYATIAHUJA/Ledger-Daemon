@@ -734,6 +734,23 @@ def cmd_mcp(args) -> int:
     return mcp_main(args.root)
 
 
+def cmd_learn_rule_demo(args) -> int:
+    from .rule_demo import run_rule_demo
+
+    report = run_rule_demo(args.out)
+    replay = report["replay"]
+    print("safe learning gate: PASS")
+    print("  lifecycle ........... PROPOSED -> REPLAY_PASSED -> APPROVED -> ACTIVE")
+    print(f"  pre-replay bypass ... {report['bypass_attempt']}")
+    print(f"  replay corpora ...... {replay['confirmed_cases']} confirmed + "
+          f"{replay['attack_cases']} attacks")
+    print(f"  new wrong paise ..... {replay['new_wrong_paise']}")
+    print(f"  proofs valid ........ {str(replay['proofs_valid']).lower()}")
+    print(f"  active rule ......... {report['active_rule_identity']}")
+    print(f"  dashboard ........... {os.path.abspath(os.path.join(args.out, 'rule-lifecycle.html'))}")
+    return 0
+
+
 def main(argv=None) -> int:
     for stream in (sys.stdout, sys.stderr):  # Windows consoles default to cp1252; ₹ needs UTF-8
         try:
@@ -851,6 +868,13 @@ def main(argv=None) -> int:
     vp.add_argument("--config-hash", default="", help="trusted expected reconciliation config hash")
     vp.add_argument("--calibration-id", default="", help="trusted expected calibration identity")
     vp.set_defaults(fn=cmd_verify_proof)
+
+    lr = sub.add_parser(
+        "learn-rule-demo",
+        help="show authenticated proposal, replay, approval and activation end to end",
+    )
+    lr.add_argument("--out", default="out/rule-demo")
+    lr.set_defaults(fn=cmd_learn_rule_demo)
 
     m = sub.add_parser("mcp", help="run the MCP server (stdio)")
     m.add_argument("--root", default="out")

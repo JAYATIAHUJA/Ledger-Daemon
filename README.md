@@ -47,8 +47,17 @@ python -m ledger_daemon ablate      # 5-config ablation ladder + risk-coverage c
 python -m ledger_daemon crosscheck  # independent splink cross-check of the matcher
 python -m ledger_daemon prove       # watch the policy engine reject an unhandled verdict
 python -m ledger_daemon agent-eval  # score the proposal layer against ground truth
+python -m ledger_daemon learn-rule-demo  # authenticated rule lifecycle + HTML evidence
 python -m ledger_daemon mcp         # run as an MCP server over stdio
 ```
+
+## Safe learning is a lifecycle, not a prompt
+
+```bash
+python -m ledger_daemon learn-rule-demo --out out/rule-demo
+```
+
+This executes the real rule store end to end: a verified human case resolution compiles to bounded JSON, a pre-replay approval attempt is rejected, authenticated confirmed and attack corpora produce a signed zero-regression replay receipt, an independent reviewer approves the exact version, and activation produces a receipt that is bound into a copied reconciliation config. It writes `rule-lifecycle.json`, an inspectable SQLite history, and `rule-lifecycle.html`—a judge-facing operational panel rather than a chat transcript. No model can propose executable code or grant itself approval.
 
 ```
 LEDGER DAEMON — EVALUATION REPORT      seed=42  n=500
@@ -86,7 +95,7 @@ The false-hold rate is always printed next to DCPR — without it, DCPR is gamea
  │ conformal abstention        │   pass 4: scored narration match
  └──────────────┬──────────────┘        (only where amount already agrees)
                 ▼
-        one of 10 Verdicts per order ── AMBIGUOUS ──▶ sandboxed LLM proposal
+        one of 11 Verdicts per order ── AMBIGUOUS ──▶ sandboxed LLM proposal
                 │                                    (typed output, no tools,
                 ▼                                     R7 holds < 0.85 conf)
  ┌─────────────────────────────┐
