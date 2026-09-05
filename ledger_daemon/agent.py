@@ -8,6 +8,12 @@ When no local model is available the layer degrades to a deterministic
 fallback (AMBIGUOUS, confidence 0.0) and the system runs end-to-end with zero
 LLM installed (FR-4.4). A proposal from the LLM can only ever LOWER the bar:
 policy rule R7 holds anything below 0.85 confidence for a human.
+
+What the model is shown is itself bounded (F7): when a narration is available it
+is read first by `evidence_reader`, which returns validated character spans of
+that narration and nothing else. The model therefore argues from typed evidence
+that has already been checked against the source text, and neither the reader
+nor the model can put a rupee figure or an action into the record.
 """
 
 from __future__ import annotations
@@ -16,6 +22,8 @@ import json
 import os
 from dataclasses import asdict, dataclass
 
+from .evidence_reader import EvidenceProposal, source_text_hash
+from .model_adapters import default_reader
 from .models import Verdict
 
 VALID_VERDICTS = {v.value for v in Verdict}
@@ -60,7 +68,25 @@ def fallback(order_id: str, evidence_refs: list[str]) -> Proposal:
                     "deterministic fallback: no local model available; abstain")
 
 
-def propose(order_id: str, evidence_summary: str, evidence_refs: list[str]) -> Proposal:
+def read_evidence(narration: str) -> EvidenceProposal:
+    """Typed spans of one narration, via the reader an operator has selected.
+
+    Defaults to the offline regex reader; abstains rather than guessing. The
+    result is evidence for a human or for the prompt below, never a verdict.
+    """
+    return default_reader().extract(narration, source_text_hash(narration))
+
+
+def _typed_evidence_line(narration: str) -> str:
+    proposal = read_evidence(narration)
+    if proposal.abstained:
+        return " Typed evidence: none (reader abstained)."
+    spans = ", ".join(f"{s.kind}={s.value}" for s in proposal.spans)
+    return f" Typed evidence (validated spans of the narration): {spans}."
+
+
+def propose(order_id: str, evidence_summary: str, evidence_refs: list[str],
+            narration: str = "") -> Proposal:
     """One call per AMBIGUOUS order, strict schema, 400-char reasoning cap.
 
     Uses a local Ollama instance only when LEDGER_DAEMON_LLM=ollama is set;
@@ -68,6 +94,8 @@ def propose(order_id: str, evidence_summary: str, evidence_refs: list[str]) -> P
     """
     if os.environ.get("LEDGER_DAEMON_LLM") != "ollama":
         return fallback(order_id, evidence_refs)
+    if narration:
+        evidence_summary += _typed_evidence_line(narration)
     try:
         import urllib.request
         prompt = (

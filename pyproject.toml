@@ -15,6 +15,7 @@ dependencies = []  # stdlib only — offline by design
 mcp = ["mcp>=1.0"]
 dev = ["pytest>=8"]
 validate = ["splink>=4.0", "rapidfuzz>=3.0"]  # independent cross-check + accel; never load-bearing
+readers = []  # optional evidence readers talk stdlib HTTP to a local daemon: no package, no default
 
 [project.scripts]
 ledger-daemon = "ledger_daemon.cli:main"

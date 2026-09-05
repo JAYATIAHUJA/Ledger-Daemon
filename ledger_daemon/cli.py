@@ -439,6 +439,48 @@ def cmd_agent_eval(args) -> int:
     return 0
 
 
+def cmd_bench_readers(args) -> int:
+    """Score every available evidence reader on the labelled span benchmark.
+
+    With no adapter selected this measures the regex incumbent alone, which is
+    the point: the challenger has to beat a number that already exists, on the
+    same fixtures, before anything model-shaped is allowed to be the default.
+    """
+    from .evidence_reader import RegexReader
+    from .model_adapters import READER_ENV, build_reader
+    from .model_benchmark import FIXTURES, benchmark_readers, gate_adapter, render_report
+
+    readers = [RegexReader()]
+    adapter_name = os.environ.get(READER_ENV, "")
+    if adapter_name:
+        readers.append(build_reader(adapter_name))
+    report = benchmark_readers(FIXTURES, readers)
+    body = render_report(report)
+
+    if len(report.scores) > 1:
+        gate = gate_adapter(report.scores[0], report.scores[1])
+        verdict = "ENABLED" if gate.enabled else "STAYS DISABLED"
+        body += f"\n## Adapter gate\n\n{verdict}: {gate.reason}\n"
+
+    p = _paths(args.out)
+    os.makedirs(p["eval_dir"], exist_ok=True)
+    out_path = os.path.join(p["eval_dir"], "model-benchmark.md")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+
+    for score in report.scores:
+        print(f"{score.reader_id:<28} F1 {score.exact_span_f1_ppm / 10_000:6.2f}%  "
+              f"safe coverage {score.safe_coverage_ppm / 10_000:6.2f}%  "
+              f"wrong {score.wrong_paise} paise  "
+              f"abstained {score.abstained}/{score.cases}  "
+              f"p95 {score.latency_p95_us} us")
+    if len(report.scores) == 1:
+        print(f"\n(no adapter selected: set {READER_ENV}=ollama to score a local "
+              "model against the same fixtures; it stays off until it wins the gate)")
+    print(f"\nwrote {out_path}")
+    return 0
+
+
 def cmd_crosscheck(args) -> int:
     from .crosscheck import run_crosscheck
     p = _paths(args.out)
@@ -685,6 +727,11 @@ def main(argv=None) -> int:
     ae.add_argument("--out", default="out")
     ae.add_argument("--profile", choices=["clean", "stress"], default="clean")
     ae.set_defaults(fn=cmd_agent_eval)
+
+    br = sub.add_parser("bench-readers",
+                        help="score the typed evidence readers on the labelled span benchmark")
+    br.add_argument("--out", default="out")
+    br.set_defaults(fn=cmd_bench_readers)
 
     cc = sub.add_parser("crosscheck", help="independent splink (MoJ) cross-check of the matcher")
     cc.add_argument("--seed", type=int, default=42)
