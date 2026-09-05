@@ -85,6 +85,8 @@ def test_public_copy_sets_honest_demo_and_evidence_boundaries():
     assert 'known generated labels' in script
     assert 'No ground-truth score is available for imported or Test Mode data.' in script
     assert 'Machine-dependent timing' in landing
+    assert 'rel="icon"' in landing
+    assert 'data:image/svg+xml' in landing
     assert "document.querySelector('.live-label').textContent='Current sample';" in script
     assert "document.querySelector('.tour-frame-label').textContent='GUIDED SAMPLE · SAVED APP RUN';" in script
     assert ".replace('Open full sample app'" not in script
