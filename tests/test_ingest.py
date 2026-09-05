@@ -1,13 +1,17 @@
 """API-to-canonical mapping is pure and testable without a network."""
 
 import importlib
+import io
 import json
+import re
+import urllib.error
 
 import pytest
 
 from ledger_daemon.datagen import load_batch
 from ledger_daemon.ingest import (
-    IngestError, _credentials, bank_row, capture_row, order_row, write_batch,
+    IngestError, _credentials, apply_settlement_recon, bank_row, capture_row,
+    ensure_refund_coverage, fetch_settlement_recon, order_row, refund_row, write_batch,
 )
 from ledger_daemon.recon import reconcile
 from ledger_daemon.source_contracts import SourceValidationError
@@ -19,13 +23,49 @@ API_ORDER = {
 }
 API_PAYMENT = {
     "id": "pay_NXhU9dQfEL", "order_id": "order_NXhT2sWnEK", "amount": 500_000,
-    "fee": 10_000, "tax": 1_800, "status": "captured", "method": "upi",
+    "fee": 11_800, "tax": 1_800, "status": "captured", "method": "upi",
     "created_at": 1_756_684_900, "acquirer_data": {"rrn": "227712345678"},
 }
 API_SETTLEMENT = {
     "id": "setl_NXk11AbCdE", "amount": 488_200, "status": "processed",
     "utr": "UTIBH25244000123", "created_at": 1_756_771_200,
 }
+API_REFUND = {
+    "id": "rfnd_NXmPartial01", "payment_id": API_PAYMENT["id"],
+    "amount": 125_000, "status": "processed", "created_at": 1_756_771_100,
+}
+API_RECON_PAYMENT = {
+    "entity_id": API_PAYMENT["id"], "type": "payment", "settled": True,
+    "settlement_id": API_SETTLEMENT["id"], "settlement_utr": API_SETTLEMENT["utr"],
+}
+API_RECON_REFUND = {
+    "entity_id": API_REFUND["id"], "payment_id": API_PAYMENT["id"],
+    "order_id": API_ORDER["id"], "type": "refund", "settled": True,
+    "settlement_id": API_SETTLEMENT["id"], "settlement_utr": API_SETTLEMENT["utr"],
+}
+
+
+def test_http_errors_do_not_expose_provider_response_bodies(monkeypatch):
+    module = importlib.import_module("ledger_daemon.ingest")
+    private_body = b'{"error":{"description":"customer@example.com / pay_private"}}'
+
+    def fail_request(*_args, **_kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.razorpay.com/v1/payments",
+            401,
+            "Unauthorized",
+            {},
+            io.BytesIO(private_body),
+        )
+
+    monkeypatch.setattr(module.urllib.request, "urlopen", fail_request)
+    with pytest.raises(IngestError) as exc:
+        module._get("payments", "rzp_test_key", "secret")
+
+    message = str(exc.value)
+    assert message == "GET /payments -> HTTP 401"
+    assert "customer@example.com" not in message
+    assert "pay_private" not in message
 
 
 def test_order_row_maps_paise_and_receipt():
@@ -47,16 +87,147 @@ def test_order_row_survives_missing_notes():
 
 def test_capture_row_keeps_only_evidence_states():
     assert capture_row(API_PAYMENT)["status"] == "captured"
-    assert capture_row({**API_PAYMENT, "status": "refunded"})["amount_paise"] == -500_000
+    refunded_payment = capture_row({**API_PAYMENT, "status": "refunded"})
+    assert refunded_payment["status"] == "captured"
+    assert refunded_payment["amount_paise"] == 500_000
     assert capture_row({**API_PAYMENT, "status": "authorized"}) is None
     assert capture_row({**API_PAYMENT, "status": "created"}) is None
     assert capture_row({**API_PAYMENT, "order_id": None}) is None
+
+
+def test_partial_refund_is_a_separate_negative_capture():
+    row = refund_row(API_REFUND, {API_PAYMENT["id"]: API_PAYMENT})
+    assert row["payment_id"] == API_REFUND["id"]
+    assert row["order_id"] == API_ORDER["id"]
+    assert row["amount_paise"] == -125_000
+    assert row["status"] == "refund"
+
+
+def test_refunded_payment_fails_closed_when_refund_feed_is_incomplete():
+    payment = {**API_PAYMENT, "status": "refunded", "amount_refunded": 500_000}
+    with pytest.raises(IngestError) as exc:
+        ensure_refund_coverage([payment], [])
+    assert "refund coverage incomplete" in str(exc.value)
+    assert payment["id"] not in str(exc.value)
+
+
+def test_refund_coverage_accepts_the_exact_processed_total():
+    payment = {
+        **API_PAYMENT,
+        "status": "captured",
+        "refund_status": "partial",
+        "amount_refunded": 125_000,
+    }
+    ensure_refund_coverage([payment], [API_REFUND])
+
+
+def test_refund_coverage_rejects_rows_that_would_be_quarantined_later():
+    payment = {
+        **API_PAYMENT,
+        "status": "captured",
+        "refund_status": "partial",
+        "amount_refunded": 125_000,
+    }
+    invalid_refund = {**API_REFUND, "created_at": None}
+    with pytest.raises(IngestError, match="refund coverage incomplete"):
+        ensure_refund_coverage([payment], [invalid_refund])
+
+
+@pytest.mark.parametrize(
+    "payment",
+    [
+        {**API_PAYMENT, "status": "refunded"},
+        {**API_PAYMENT, "status": "refunded", "amount_refunded": None},
+    ],
+)
+def test_refunded_payment_requires_an_explicit_refunded_total(payment):
+    with pytest.raises(IngestError, match="refund coverage incomplete"):
+        ensure_refund_coverage([payment], [])
+
+
+def test_refund_coverage_rejects_partial_state_at_the_full_amount():
+    payment = {
+        **API_PAYMENT,
+        "status": "captured",
+        "refund_status": "partial",
+        "amount_refunded": 500_000,
+    }
+    full_refund = {**API_REFUND, "amount": 500_000}
+    with pytest.raises(IngestError, match="refund coverage incomplete"):
+        ensure_refund_coverage([payment], [full_refund])
+
+
+def test_refund_coverage_rejects_refunded_status_below_the_full_amount():
+    payment = {
+        **API_PAYMENT,
+        "status": "refunded",
+        "refund_status": "partial",
+        "amount_refunded": 125_000,
+    }
+    with pytest.raises(IngestError, match="refund coverage incomplete"):
+        ensure_refund_coverage([payment], [API_REFUND])
+
+
+@pytest.mark.parametrize("bad_amount", [True, 0.0, -1, 0])
+def test_refund_row_rejects_non_integer_or_non_positive_amounts(bad_amount):
+    with pytest.raises(SourceValidationError):
+        refund_row({**API_REFUND, "amount": bad_amount}, {API_PAYMENT["id"]: API_PAYMENT})
+
+
+def test_settlement_recon_links_payment_and_refund_to_the_same_credit():
+    rows = [
+        capture_row({**API_PAYMENT, "status": "refunded"}),
+        refund_row(API_REFUND, {API_PAYMENT["id"]: API_PAYMENT}),
+    ]
+    linked, linked_count = apply_settlement_recon(
+        rows, [API_RECON_PAYMENT, API_RECON_REFUND]
+    )
+    assert linked_count == 2
+    assert {row["settlement_id"] for row in linked} == {API_SETTLEMENT["id"]}
+    assert {row["utr"] for row in linked} == {API_SETTLEMENT["utr"]}
+
+
+def test_settlement_recon_fetch_uses_the_official_bounded_period(monkeypatch):
+    module = importlib.import_module("ledger_daemon.ingest")
+    calls = []
+
+    def fake_get(path, _key, _secret, **params):
+        calls.append((path, params))
+        return {"items": [API_RECON_PAYMENT]}
+
+    monkeypatch.setattr(module, "_get", fake_get)
+    rows = fetch_settlement_recon(
+        "rzp_test_key", "secret", year=2026, month=9, day=5, limit=10
+    )
+    assert rows == [API_RECON_PAYMENT]
+    assert calls == [("settlements/recon/combined", {
+        "year": 2026, "month": 9, "day": 5, "count": 10, "skip": 0,
+    })]
 
 
 def test_capture_row_takes_utr_from_acquirer_data():
     assert capture_row(API_PAYMENT)["utr"] == "227712345678"
     named = {**API_PAYMENT, "acquirer_data": {"utr": "AXISN000111222"}}
     assert capture_row(named)["utr"] == "AXISN000111222"
+
+
+def test_capture_row_splits_tax_from_razorpay_fee_total():
+    row = capture_row(API_PAYMENT)
+    assert row["fee_paise"] == 10_000
+    assert row["tax_paise"] == 1_800
+    assert row["amount_paise"] - row["fee_paise"] - row["tax_paise"] == 488_200
+
+
+@pytest.mark.parametrize(
+    "payment",
+    [
+        {**API_PAYMENT, "fee": 0.0, "tax": 0},
+        {**API_PAYMENT, "fee": 100, "tax": False},
+    ],
+)
+def test_capture_row_rejects_non_integer_fee_or_tax_even_when_falsy(payment):
+    with pytest.raises(SourceValidationError, match="integer paise"):
+        capture_row(payment)
 
 
 def test_bank_row_is_marked_as_a_settlement_credit():
@@ -147,6 +318,7 @@ def test_ingest_quarantines_bad_api_items_without_dropping_valid_items(tmp_path,
             {**API_ORDER, "receipt": "DUPLICATE-ID", "amount": 600_000},
         ],
         "payments": [API_PAYMENT],
+        "refunds": [],
         "settlements": [API_SETTLEMENT],
     }
     monkeypatch.setattr(module, "_credentials", lambda: ("rzp_test_key", "secret"))
@@ -155,6 +327,7 @@ def test_ingest_quarantines_bad_api_items_without_dropping_valid_items(tmp_path,
         "fetch_all",
         lambda entity, _key, _secret, _limit: by_entity[entity],
     )
+    monkeypatch.setattr(module, "fetch_settlement_recon", lambda *_args, **_kwargs: [])
 
     counts = module.ingest(str(tmp_path), limit=10)
 
@@ -172,3 +345,69 @@ def test_ingest_quarantines_bad_api_items_without_dropping_valid_items(tmp_path,
     quarantine_text = (tmp_path / "quarantine.jsonl").read_text(encoding="utf-8")
     assert "SHARMA TEXTILES PVT LTD" not in quarantine_text
     assert "CUST-9" not in quarantine_text
+
+
+def test_ingest_writes_a_public_safe_test_mode_receipt(tmp_path, monkeypatch):
+    """A credentialed read leaves evidence without publishing source objects."""
+    module = importlib.import_module("ledger_daemon.ingest")
+    by_entity = {
+        "orders": [API_ORDER],
+        "payments": [API_PAYMENT],
+        "refunds": [],
+        "settlements": [API_SETTLEMENT],
+    }
+    monkeypatch.setattr(module, "_credentials", lambda: ("rzp_test_private", "secret-value"))
+    monkeypatch.setattr(
+        module, "fetch_all",
+        lambda entity, _key, _secret, _limit: by_entity[entity],
+    )
+    monkeypatch.setattr(module, "fetch_settlement_recon", lambda *_args, **_kwargs: [])
+
+    counts = module.ingest(str(tmp_path), limit=10)
+    receipt_path = tmp_path / "razorpay_test_mode_receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+
+    assert counts["receipt"] == str(receipt_path)
+    assert receipt["source"] == "razorpay_test_mode_api"
+    assert receipt["mode"] == "test"
+    assert receipt["read_only"] is True
+    assert receipt["fetched"] == {
+        "orders": 1,
+        "payments": 1,
+        "refunds": 0,
+        "settlements": 1,
+        "settlement_recon": 0,
+    }
+    assert receipt["accepted"] == {"orders": 1, "payments": 1, "settlement_proxies": 1}
+    assert receipt["bank_feed"] == {
+        "independent": False,
+        "kind": "razorpay_settlement_proxy",
+    }
+    assert receipt["ground_truth"] == "absent"
+    assert re.fullmatch(r"[0-9a-f]{64}", receipt["batch_manifest_sha256"])
+    assert receipt["captured_at"].endswith("Z")
+
+    public_text = receipt_path.read_text(encoding="utf-8")
+    for private_value in (
+        "rzp_test_private", "secret-value", API_ORDER["id"],
+        API_PAYMENT["id"], API_SETTLEMENT["id"], "SHARMA TEXTILES",
+    ):
+        assert private_value not in public_text
+
+
+def test_ingest_cli_points_to_the_existing_reconcile_batch_flag(tmp_path, monkeypatch, capsys):
+    module = importlib.import_module("ledger_daemon.ingest")
+    receipt = tmp_path / "razorpay_test_mode_receipt.json"
+    monkeypatch.setattr(module, "ingest", lambda *_args, **_kwargs: {
+        "orders": 1, "captures": 1, "bank": 1,
+        "skipped_payments": 0, "skipped_refunds": 0,
+        "unprocessed_settlements": 0, "linked_captures": 1,
+        "quarantined": 0, "receipt": str(receipt),
+    })
+    from ledger_daemon.cli import cmd_ingest
+
+    assert cmd_ingest(type("Args", (), {"out": str(tmp_path), "limit": 10})()) == 0
+    output = capsys.readouterr().out
+    assert f"python -m ledger_daemon reconcile --batch {tmp_path}" in output
+    assert "reconcile --dir" not in output
+    assert str(receipt) in output

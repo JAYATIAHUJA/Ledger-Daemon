@@ -137,8 +137,10 @@ def test_security_covers_the_boundary_and_the_secrets():
 
 def test_simulated_vs_real_separates_the_four_data_classes():
     body = _read("SIMULATED_VS_REAL.md").lower()
-    for needle in ("synthetic", "schema-derived", "semi-real", "live"):
+    for needle in ("synthetic", "schema-derived", "test mode api", "merchant-provided"):
         assert needle in body, f"SIMULATED_VS_REAL.md does not name {needle!r}"
+    assert "no credentialed test mode run" in body
+    assert "no production money" in body
 
 
 def test_claims_table_is_complete():

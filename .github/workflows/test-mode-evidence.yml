@@ -1,0 +1,125 @@
+name: Test Mode evidence capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Maximum records to read for each Test Mode entity
+        required: false
+        default: "100"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Read-only Test Mode reconciliation evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: python -m pip install -e .
+
+      - name: Require Test Mode credentials
+        shell: bash
+        env:
+          RZP_TEST_KEY_ID: ${{ secrets.RZP_TEST_KEY_ID }}
+          RZP_TEST_KEY_SECRET: ${{ secrets.RZP_TEST_KEY_SECRET }}
+        run: |
+          test -n "${RZP_TEST_KEY_ID}" || { echo "::error::RZP_TEST_KEY_ID is required"; exit 1; }
+          test -n "${RZP_TEST_KEY_SECRET}" || { echo "::error::RZP_TEST_KEY_SECRET is required"; exit 1; }
+          case "${RZP_TEST_KEY_ID}" in
+            rzp_test_*) ;;
+            *) echo "::error::RZP_TEST_KEY_ID must be a Test Mode key"; exit 1 ;;
+          esac
+
+      - name: Ingest read-only Razorpay Test Mode batch
+        shell: bash
+        env:
+          CAPTURE_LIMIT: ${{ inputs.limit }}
+          RZP_TEST_KEY_ID: ${{ secrets.RZP_TEST_KEY_ID }}
+          RZP_TEST_KEY_SECRET: ${{ secrets.RZP_TEST_KEY_SECRET }}
+        run: |
+          [[ "$CAPTURE_LIMIT" =~ ^[0-9]+$ ]] || { echo "::error::limit must be an integer"; exit 1; }
+          (( CAPTURE_LIMIT >= 1 && CAPTURE_LIMIT <= 1000 )) || { echo "::error::limit must be between 1 and 1000"; exit 1; }
+          if ! python -m ledger_daemon ingest --out data/test-mode-raw --limit "$CAPTURE_LIMIT" > /tmp/ledger-daemon-ingest.log 2>&1; then
+            echo "::error::Test Mode ingestion failed; check credentials and API access"
+            exit 1
+          fi
+
+      - name: Reconcile Test Mode batch without logging source records
+        shell: bash
+        run: |
+          if ! python -m ledger_daemon reconcile --batch data/test-mode-raw > reconciliation-raw.json 2> /tmp/ledger-daemon-reconcile.log; then
+            echo "::error::Test Mode reconciliation failed"
+            exit 1
+          fi
+
+      - name: Write count-only public evidence
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("reconciliation-raw.json").read_text(encoding="utf-8"))
+          capture = json.loads(
+              Path("data/test-mode-raw/razorpay_test_mode_receipt.json")
+              .read_text(encoding="utf-8")
+          )
+          evidence = Path("evidence")
+          evidence.mkdir()
+          receipt = {
+              "accepted": capture["accepted"],
+              "bank_feed": capture["bank_feed"],
+              "batch_manifest_sha256": capture["batch_manifest_sha256"],
+              "captured_at": capture["captured_at"],
+              "fetched": capture["fetched"],
+              "ground_truth": capture["ground_truth"],
+              "linked_captures": capture["linked_captures"],
+              "mode": capture["mode"],
+              "read_only": capture["read_only"],
+              "redaction": "counts-only",
+              "reconciliation": {
+                  "orders": result["orders"],
+                  "exception_count": len(result["exceptions"]),
+                  "verdict_counts": result["verdict_counts"],
+              },
+              "schema_version": capture["schema_version"],
+              "settlement_recon_period": capture["settlement_recon_period"],
+              "source": capture["source"],
+          }
+          receipt_path = evidence / "razorpay-test-mode-receipt.json"
+          receipt_path.write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          manifest = {
+              "schema_version": "test-mode-reconciliation-manifest-v1",
+              "redaction": "counts-only",
+              "evidence_files": [{
+                  "path": receipt_path.name,
+                  "sha256": hashlib.sha256(receipt_path.read_bytes()).hexdigest(),
+              }],
+              "prohibited": [
+                  "raw_orders", "raw_payments", "raw_bank_csv", "sqlite", "order_ids",
+              ],
+          }
+          (evidence / "test-mode-reconciliation-manifest.json").write_text(
+              json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload redacted Test Mode evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: razorpay-test-mode-redacted-evidence
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            evidence/razorpay-test-mode-receipt.json
+            evidence/test-mode-reconciliation-manifest.json

@@ -1,0 +1,1 @@
+{"reader_id":"regex","cases":16,"true_positives":41,"false_positives":1,"false_negatives":1,"precision_ppm":976190,"recall_ppm":976190,"exact_span_f1_ppm":976190,"malformed":0,"abstained":4,"fallbacks":0,"latency_p50_us":83,"latency_p95_us":209,"safe_coverage_ppm":937500,"wrong_paise":11000000}

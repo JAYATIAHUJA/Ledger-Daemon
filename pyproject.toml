@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ledger-daemon"
 version = "1.0.0"
-description = "Never chase money you already have: deterministic 3-way reconciliation as a hard precondition on autonomous revenue recovery."
+description = "A local-first finance controller for three-way reconciliation, human exception review, and independently verifiable evidence."
 readme = "README.md"
 keywords = ["reconciliation", "finance", "audit", "proof-carrying"]
 requires-python = ">=3.11"
@@ -23,6 +23,9 @@ ledger-daemon = "ledger_daemon.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["ledger_daemon*"]
+
+[tool.setuptools.package-data]
+ledger_daemon = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

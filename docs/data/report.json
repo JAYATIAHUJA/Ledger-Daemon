@@ -1,0 +1,4019 @@
+{
+  "source": "Synthetic batch",
+  "orders": 500,
+  "held_orders": 32,
+  "held_paise": 788870500,
+  "proofs_attached": 500,
+  "verdict_accuracy": 0.968,
+  "correct_verdicts": 484,
+  "throughput": 14741,
+  "wrongly_chased_paise": 0,
+  "false_hold_rate": 0.04,
+  "model": {
+    "name": "Deterministic engine",
+    "measured": false,
+    "detail": "Optional model uplift has not been demonstrated. No LLM makes financial decisions."
+  },
+  "rows": [
+    {
+      "id": "ORD-1000",
+      "amount_paise": 11752600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1001",
+      "amount_paise": 22170800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1002",
+      "amount_paise": 10474800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1003",
+      "amount_paise": 36652600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1004",
+      "amount_paise": 4912500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1005",
+      "amount_paise": 28163700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1006",
+      "amount_paise": 10131400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1007",
+      "amount_paise": 19979500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1008",
+      "amount_paise": 31986000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1009",
+      "amount_paise": 44239700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1010",
+      "amount_paise": 47924600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1011",
+      "amount_paise": 13937300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1012",
+      "amount_paise": 11548700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1013",
+      "amount_paise": 32946200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1014",
+      "amount_paise": 13231300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1015",
+      "amount_paise": 5898500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1016",
+      "amount_paise": 39998700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1017",
+      "amount_paise": 19653800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1018",
+      "amount_paise": 46120300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1019",
+      "amount_paise": 42833100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1020",
+      "amount_paise": 27715300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1021",
+      "amount_paise": 20968600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1022",
+      "amount_paise": 17775400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1023",
+      "amount_paise": 3583700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1024",
+      "amount_paise": 28321300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1025",
+      "amount_paise": 4995300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1026",
+      "amount_paise": 3227800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1027",
+      "amount_paise": 28166800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1028",
+      "amount_paise": 42413600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1029",
+      "amount_paise": 48618300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1030",
+      "amount_paise": 8681700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1031",
+      "amount_paise": 22227700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1032",
+      "amount_paise": 38623800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1033",
+      "amount_paise": 26674800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1034",
+      "amount_paise": 6335500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1035",
+      "amount_paise": 10759000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1036",
+      "amount_paise": 16626700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1037",
+      "amount_paise": 11225400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1038",
+      "amount_paise": 14991500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1039",
+      "amount_paise": 15746000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1040",
+      "amount_paise": 14822100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1041",
+      "amount_paise": 25663100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1042",
+      "amount_paise": 17537900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1043",
+      "amount_paise": 556900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1044",
+      "amount_paise": 6731800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1045",
+      "amount_paise": 35809900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1046",
+      "amount_paise": 39344200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1047",
+      "amount_paise": 9453600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1048",
+      "amount_paise": 45776600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1049",
+      "amount_paise": 43069700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1050",
+      "amount_paise": 40594500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1051",
+      "amount_paise": 6097200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1052",
+      "amount_paise": 22929600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1053",
+      "amount_paise": 37210700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1054",
+      "amount_paise": 16508200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1055",
+      "amount_paise": 36603800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1056",
+      "amount_paise": 29887500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1057",
+      "amount_paise": 23212300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1058",
+      "amount_paise": 14928500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1059",
+      "amount_paise": 11827600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1060",
+      "amount_paise": 21778600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1061",
+      "amount_paise": 7786900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1062",
+      "amount_paise": 11523500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1063",
+      "amount_paise": 7040800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1064",
+      "amount_paise": 23428700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1065",
+      "amount_paise": 25456800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1066",
+      "amount_paise": 17658000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1067",
+      "amount_paise": 3417400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1068",
+      "amount_paise": 20469800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1069",
+      "amount_paise": 15705900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1070",
+      "amount_paise": 20437300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1071",
+      "amount_paise": 28053400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1072",
+      "amount_paise": 2686300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1073",
+      "amount_paise": 39476900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1074",
+      "amount_paise": 11805600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1075",
+      "amount_paise": 32625800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1076",
+      "amount_paise": 36722100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1077",
+      "amount_paise": 16357300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1078",
+      "amount_paise": 49410100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1079",
+      "amount_paise": 41082600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1080",
+      "amount_paise": 44592200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1081",
+      "amount_paise": 22882000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1082",
+      "amount_paise": 22886600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1083",
+      "amount_paise": 12835400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1084",
+      "amount_paise": 25611600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1085",
+      "amount_paise": 582200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1086",
+      "amount_paise": 33913900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1087",
+      "amount_paise": 34860600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1088",
+      "amount_paise": 36899800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1089",
+      "amount_paise": 6318100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1090",
+      "amount_paise": 39906700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1091",
+      "amount_paise": 9457900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1092",
+      "amount_paise": 33492700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1093",
+      "amount_paise": 9715900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1094",
+      "amount_paise": 30302500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1095",
+      "amount_paise": 13062300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1096",
+      "amount_paise": 19992700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1097",
+      "amount_paise": 38851900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1098",
+      "amount_paise": 28990200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1099",
+      "amount_paise": 1761200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1100",
+      "amount_paise": 41354800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1101",
+      "amount_paise": 43389200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1102",
+      "amount_paise": 6569700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1103",
+      "amount_paise": 4267400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1104",
+      "amount_paise": 12052200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1105",
+      "amount_paise": 24717700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1106",
+      "amount_paise": 4833700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1107",
+      "amount_paise": 21632000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1108",
+      "amount_paise": 16539700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1109",
+      "amount_paise": 24270800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1110",
+      "amount_paise": 39895300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1111",
+      "amount_paise": 6416200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1112",
+      "amount_paise": 21440400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1113",
+      "amount_paise": 48947800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1114",
+      "amount_paise": 28952100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1115",
+      "amount_paise": 14533300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1116",
+      "amount_paise": 30454600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1117",
+      "amount_paise": 48958300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1118",
+      "amount_paise": 16731600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1119",
+      "amount_paise": 1990800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1120",
+      "amount_paise": 47783300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1121",
+      "amount_paise": 41024400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1122",
+      "amount_paise": 32912300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1123",
+      "amount_paise": 39202000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1124",
+      "amount_paise": 8772300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1125",
+      "amount_paise": 22630300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1126",
+      "amount_paise": 4190200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1127",
+      "amount_paise": 33494500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1128",
+      "amount_paise": 35576300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1129",
+      "amount_paise": 36242300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1130",
+      "amount_paise": 12486400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1131",
+      "amount_paise": 43567800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1132",
+      "amount_paise": 39118400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1133",
+      "amount_paise": 13190000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1134",
+      "amount_paise": 30436300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1135",
+      "amount_paise": 10577400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1136",
+      "amount_paise": 47972400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1137",
+      "amount_paise": 45146100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1138",
+      "amount_paise": 6529600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1139",
+      "amount_paise": 35430800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1140",
+      "amount_paise": 11656000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1141",
+      "amount_paise": 2427400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1142",
+      "amount_paise": 23833900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1143",
+      "amount_paise": 43759500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1144",
+      "amount_paise": 23364800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1145",
+      "amount_paise": 20923900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1146",
+      "amount_paise": 1169700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1147",
+      "amount_paise": 10911000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1148",
+      "amount_paise": 45055200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1149",
+      "amount_paise": 829100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1150",
+      "amount_paise": 27632000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1151",
+      "amount_paise": 26465600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1152",
+      "amount_paise": 33779500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1153",
+      "amount_paise": 3903000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1154",
+      "amount_paise": 31370500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1155",
+      "amount_paise": 37842700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1156",
+      "amount_paise": 21859800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1157",
+      "amount_paise": 3569700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1158",
+      "amount_paise": 29219800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1159",
+      "amount_paise": 15130000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1160",
+      "amount_paise": 11806800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1161",
+      "amount_paise": 44360400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1162",
+      "amount_paise": 9508900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1163",
+      "amount_paise": 34513700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1164",
+      "amount_paise": 11329100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1165",
+      "amount_paise": 31309200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1166",
+      "amount_paise": 23281800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1167",
+      "amount_paise": 22589800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1168",
+      "amount_paise": 31471800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1169",
+      "amount_paise": 15225300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1170",
+      "amount_paise": 27972600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1171",
+      "amount_paise": 1032500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1172",
+      "amount_paise": 6088400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1173",
+      "amount_paise": 4670500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1174",
+      "amount_paise": 45690500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1175",
+      "amount_paise": 33249200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1176",
+      "amount_paise": 5439900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1177",
+      "amount_paise": 49925100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1178",
+      "amount_paise": 33761200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1179",
+      "amount_paise": 23234400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1180",
+      "amount_paise": 24258600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1181",
+      "amount_paise": 31196800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1182",
+      "amount_paise": 47710300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1183",
+      "amount_paise": 23670300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1184",
+      "amount_paise": 23088300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1185",
+      "amount_paise": 40654200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1186",
+      "amount_paise": 5004800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1187",
+      "amount_paise": 4323000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1188",
+      "amount_paise": 31247200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1189",
+      "amount_paise": 4949600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1190",
+      "amount_paise": 49918600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1191",
+      "amount_paise": 15558000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1192",
+      "amount_paise": 19800900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1193",
+      "amount_paise": 2340700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1194",
+      "amount_paise": 28047500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1195",
+      "amount_paise": 40390700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1196",
+      "amount_paise": 2785700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1197",
+      "amount_paise": 4447400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1198",
+      "amount_paise": 42868700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1199",
+      "amount_paise": 20296200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1200",
+      "amount_paise": 7264100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1201",
+      "amount_paise": 32311900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1202",
+      "amount_paise": 40743700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1203",
+      "amount_paise": 5862100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1204",
+      "amount_paise": 22554400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1205",
+      "amount_paise": 18956000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1206",
+      "amount_paise": 13348500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1207",
+      "amount_paise": 38594900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1208",
+      "amount_paise": 36508400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1209",
+      "amount_paise": 15434800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1210",
+      "amount_paise": 24869700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1211",
+      "amount_paise": 14374400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1212",
+      "amount_paise": 9844600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1213",
+      "amount_paise": 38170000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1214",
+      "amount_paise": 5429000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1215",
+      "amount_paise": 36213500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1216",
+      "amount_paise": 22853400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1217",
+      "amount_paise": 42050500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1218",
+      "amount_paise": 3574900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1219",
+      "amount_paise": 8094500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1220",
+      "amount_paise": 19288700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1221",
+      "amount_paise": 27194700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1222",
+      "amount_paise": 32129900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1223",
+      "amount_paise": 9102100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1224",
+      "amount_paise": 44685800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1225",
+      "amount_paise": 41577000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1226",
+      "amount_paise": 42185000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1227",
+      "amount_paise": 21587400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1228",
+      "amount_paise": 24473000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1229",
+      "amount_paise": 22731600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1230",
+      "amount_paise": 49057100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1231",
+      "amount_paise": 32819100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1232",
+      "amount_paise": 34586500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1233",
+      "amount_paise": 2433500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1234",
+      "amount_paise": 33551500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1235",
+      "amount_paise": 15644100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1236",
+      "amount_paise": 17885800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1237",
+      "amount_paise": 6905900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1238",
+      "amount_paise": 13048000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1239",
+      "amount_paise": 45417000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1240",
+      "amount_paise": 46138800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1241",
+      "amount_paise": 11329700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1242",
+      "amount_paise": 28188000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1243",
+      "amount_paise": 19235600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1244",
+      "amount_paise": 20305800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1245",
+      "amount_paise": 5118800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1246",
+      "amount_paise": 31636400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1247",
+      "amount_paise": 27277900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1248",
+      "amount_paise": 32372300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1249",
+      "amount_paise": 15767600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1250",
+      "amount_paise": 31345200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1251",
+      "amount_paise": 33029000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1252",
+      "amount_paise": 1042800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1253",
+      "amount_paise": 40680800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1254",
+      "amount_paise": 27600100,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1255",
+      "amount_paise": 32035500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1256",
+      "amount_paise": 49410900,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1257",
+      "amount_paise": 49002700,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1258",
+      "amount_paise": 15278000,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1259",
+      "amount_paise": 11269000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1260",
+      "amount_paise": 2711500,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1261",
+      "amount_paise": 5321400,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1262",
+      "amount_paise": 34156900,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1263",
+      "amount_paise": 12225000,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1264",
+      "amount_paise": 43891100,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1265",
+      "amount_paise": 31653100,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1266",
+      "amount_paise": 44670000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1267",
+      "amount_paise": 38381700,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1268",
+      "amount_paise": 29818000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1269",
+      "amount_paise": 35138200,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1270",
+      "amount_paise": 13722600,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1271",
+      "amount_paise": 34321800,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1272",
+      "amount_paise": 8423700,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1273",
+      "amount_paise": 32274000,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1274",
+      "amount_paise": 36851900,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1275",
+      "amount_paise": 23472400,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1276",
+      "amount_paise": 47387300,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1277",
+      "amount_paise": 35717000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1278",
+      "amount_paise": 6967600,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1279",
+      "amount_paise": 20809100,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1280",
+      "amount_paise": 28422500,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1281",
+      "amount_paise": 40201400,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1282",
+      "amount_paise": 4257400,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1283",
+      "amount_paise": 6726600,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1284",
+      "amount_paise": 19935000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1285",
+      "amount_paise": 1739100,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1286",
+      "amount_paise": 1810300,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1287",
+      "amount_paise": 12336100,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1288",
+      "amount_paise": 16769700,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1289",
+      "amount_paise": 11639000,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1290",
+      "amount_paise": 29192500,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1291",
+      "amount_paise": 21454500,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1292",
+      "amount_paise": 44579900,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1293",
+      "amount_paise": 29267800,
+      "verdict": "settled_late",
+      "reason": "settled T+3",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1294",
+      "amount_paise": 48401200,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1295",
+      "amount_paise": 31660400,
+      "verdict": "settled_late",
+      "reason": "settled T+2",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1296",
+      "amount_paise": 47707400,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1297",
+      "amount_paise": 48028900,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1298",
+      "amount_paise": 13763300,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1299",
+      "amount_paise": 29542400,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1300",
+      "amount_paise": 8040700,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.984)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1301",
+      "amount_paise": 40072000,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1302",
+      "amount_paise": 48121900,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1303",
+      "amount_paise": 3613400,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.964)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1304",
+      "amount_paise": 874700,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1305",
+      "amount_paise": 42682800,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1306",
+      "amount_paise": 14065500,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.991)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1307",
+      "amount_paise": 34324500,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1308",
+      "amount_paise": 33433900,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1309",
+      "amount_paise": 45031800,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1310",
+      "amount_paise": 47199800,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1311",
+      "amount_paise": 15740700,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.992)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1312",
+      "amount_paise": 39665600,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1313",
+      "amount_paise": 44020700,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1314",
+      "amount_paise": 25771700,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.995)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1315",
+      "amount_paise": 37437400,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1316",
+      "amount_paise": 16653000,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1317",
+      "amount_paise": 6997100,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.981)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1318",
+      "amount_paise": 18605300,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.993)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1319",
+      "amount_paise": 47508900,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1320",
+      "amount_paise": 14122200,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.991)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1321",
+      "amount_paise": 18983300,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.993)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1322",
+      "amount_paise": 49795600,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1323",
+      "amount_paise": 16862000,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.992)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1324",
+      "amount_paise": 38578500,
+      "verdict": "paid_out_of_band",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1325",
+      "amount_paise": 6021000,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1326",
+      "amount_paise": 41871600,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 837432 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1327",
+      "amount_paise": 41420300,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 828406 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1328",
+      "amount_paise": 1977500,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1329",
+      "amount_paise": 33868200,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 3386820 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1330",
+      "amount_paise": 19664600,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 1966460 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1331",
+      "amount_paise": 6135300,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1332",
+      "amount_paise": 37903200,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 3790320 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1333",
+      "amount_paise": 48804700,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 976094 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=0.9996",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1334",
+      "amount_paise": 9822000,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1335",
+      "amount_paise": 36998400,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 739968 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1336",
+      "amount_paise": 6024500,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 602450 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=0.9996",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1337",
+      "amount_paise": 32417500,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1338",
+      "amount_paise": 9646800,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 192936 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1339",
+      "amount_paise": 36405800,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 728116 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1340",
+      "amount_paise": 32524900,
+      "verdict": "ambiguous",
+      "reason": "P(match)=0.9990 not classifiable at the chosen error rate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1341",
+      "amount_paise": 35947800,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 3594780 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1342",
+      "amount_paise": 1764100,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 35282 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=0.9996",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1343",
+      "amount_paise": 6037700,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1344",
+      "amount_paise": 15658500,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 1565850 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=1.0000",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1345",
+      "amount_paise": 42554100,
+      "verdict": "paid_net_of_tds",
+      "reason": "bank receipt plus verified TDS evidence; 4255410 paise withheld under ITA2025:S393:WITHHOLDING@2026-04-01 \u2014 P(match)=0.9996",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1346",
+      "amount_paise": 18442800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1347",
+      "amount_paise": 36962600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1348",
+      "amount_paise": 39376500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1349",
+      "amount_paise": 45508200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1350",
+      "amount_paise": 7717300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1351",
+      "amount_paise": 25711700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1352",
+      "amount_paise": 27082900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1353",
+      "amount_paise": 49870600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1354",
+      "amount_paise": 38371800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1355",
+      "amount_paise": 43295700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1356",
+      "amount_paise": 43479000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1357",
+      "amount_paise": 44741400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1358",
+      "amount_paise": 2458700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1359",
+      "amount_paise": 36152000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1360",
+      "amount_paise": 45894900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1361",
+      "amount_paise": 4371200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1362",
+      "amount_paise": 34416300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1363",
+      "amount_paise": 11239400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1364",
+      "amount_paise": 11908900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1365",
+      "amount_paise": 472700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1366",
+      "amount_paise": 5460700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1367",
+      "amount_paise": 20115600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1368",
+      "amount_paise": 34129700,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1369",
+      "amount_paise": 32979400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1370",
+      "amount_paise": 36045800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1371",
+      "amount_paise": 47057200,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1372",
+      "amount_paise": 14571000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1373",
+      "amount_paise": 31559600,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1374",
+      "amount_paise": 44503900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1375",
+      "amount_paise": 25996300,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1376",
+      "amount_paise": 33503800,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1377",
+      "amount_paise": 49014500,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1378",
+      "amount_paise": 40439400,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1379",
+      "amount_paise": 13796000,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1380",
+      "amount_paise": 26610900,
+      "verdict": "settled_clean",
+      "reason": "settled T+1",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1381",
+      "amount_paise": 33632600,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1382",
+      "amount_paise": 26857000,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1383",
+      "amount_paise": 36680700,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1384",
+      "amount_paise": 23819700,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1385",
+      "amount_paise": 714000,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1386",
+      "amount_paise": 19546600,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1387",
+      "amount_paise": 42365600,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1388",
+      "amount_paise": 23915400,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1389",
+      "amount_paise": 13425400,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1390",
+      "amount_paise": 45070000,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1391",
+      "amount_paise": 48869600,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1392",
+      "amount_paise": 48067100,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1393",
+      "amount_paise": 11751300,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1394",
+      "amount_paise": 17209900,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1395",
+      "amount_paise": 41180700,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1396",
+      "amount_paise": 38452100,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1397",
+      "amount_paise": 18212500,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1398",
+      "amount_paise": 5499900,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1399",
+      "amount_paise": 4927200,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1400",
+      "amount_paise": 39261400,
+      "verdict": "partially_paid",
+      "reason": "net settled minus partial refund \u2014 chase only the delta",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1401",
+      "amount_paise": 31082300,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1402",
+      "amount_paise": 36788200,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1403",
+      "amount_paise": 5589500,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.977)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1404",
+      "amount_paise": 13944000,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.991)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1405",
+      "amount_paise": 4832100,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.973)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1406",
+      "amount_paise": 49967200,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.997)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1407",
+      "amount_paise": 676800,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.835)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1408",
+      "amount_paise": 30779500,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.996)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1409",
+      "amount_paise": 2288500,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=0.9996 >= floors (conformal q_hat=0.0010, cost-sensitive 0.945)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1410",
+      "amount_paise": 18606800,
+      "verdict": "refunded_then_repaid",
+      "reason": "P(match)=1.0000 >= floors (conformal q_hat=0.0010, cost-sensitive 0.993)",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1411",
+      "amount_paise": 33986000,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1412",
+      "amount_paise": 33986000,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1413",
+      "amount_paise": 33119600,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1414",
+      "amount_paise": 33119600,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1415",
+      "amount_paise": 20412300,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1416",
+      "amount_paise": 20412300,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1417",
+      "amount_paise": 8418900,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1418",
+      "amount_paise": 8418900,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1419",
+      "amount_paise": 9282700,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1420",
+      "amount_paise": 9282700,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1421",
+      "amount_paise": 43917000,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1422",
+      "amount_paise": 43917000,
+      "verdict": "ambiguous",
+      "reason": "competing bank credits cannot be separated \u2014 escalate, never guess",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1423",
+      "amount_paise": 17442400,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1424",
+      "amount_paise": 17442400,
+      "verdict": "ambiguous",
+      "reason": "duplicate UTR \u2014 evidence untrustworthy, escalate",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1425",
+      "amount_paise": 19636900,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1426",
+      "amount_paise": 16963600,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1427",
+      "amount_paise": 34085700,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1428",
+      "amount_paise": 34943000,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1429",
+      "amount_paise": 6726700,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1430",
+      "amount_paise": 1747700,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1431",
+      "amount_paise": 5508300,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1432",
+      "amount_paise": 18232800,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1433",
+      "amount_paise": 23466200,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1434",
+      "amount_paise": 18425300,
+      "verdict": "chargeback_open",
+      "reason": "disputed funds \u2014 freeze and escalate, never dun",
+      "outcome": "ESCALATE",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1435",
+      "amount_paise": 20284200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources \u2014 but bank feed does not yet cover due_date+3",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1436",
+      "amount_paise": 46280100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources \u2014 but bank feed does not yet cover due_date+3",
+      "outcome": "HOLD",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1437",
+      "amount_paise": 43503300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1438",
+      "amount_paise": 23710400,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1439",
+      "amount_paise": 13740600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1440",
+      "amount_paise": 8486000,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1441",
+      "amount_paise": 31194300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1442",
+      "amount_paise": 46698600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1443",
+      "amount_paise": 10826700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1444",
+      "amount_paise": 15642300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1445",
+      "amount_paise": 28868100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1446",
+      "amount_paise": 22468800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1447",
+      "amount_paise": 5134900,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1448",
+      "amount_paise": 24878700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1449",
+      "amount_paise": 25692700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1450",
+      "amount_paise": 19502100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1451",
+      "amount_paise": 13854200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1452",
+      "amount_paise": 29632700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1453",
+      "amount_paise": 35079800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1454",
+      "amount_paise": 3247300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1455",
+      "amount_paise": 46274000,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1456",
+      "amount_paise": 47381500,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1457",
+      "amount_paise": 49818200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1458",
+      "amount_paise": 6665700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1459",
+      "amount_paise": 43176000,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1460",
+      "amount_paise": 4612700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1461",
+      "amount_paise": 27296600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1462",
+      "amount_paise": 21778700,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1463",
+      "amount_paise": 29550800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1464",
+      "amount_paise": 13898300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1465",
+      "amount_paise": 9078200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1466",
+      "amount_paise": 20800900,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1467",
+      "amount_paise": 47080200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1468",
+      "amount_paise": 14748200,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1469",
+      "amount_paise": 15803800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1470",
+      "amount_paise": 33895600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1471",
+      "amount_paise": 38896800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1472",
+      "amount_paise": 27064900,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1473",
+      "amount_paise": 40971500,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1474",
+      "amount_paise": 13130400,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1475",
+      "amount_paise": 14414300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1476",
+      "amount_paise": 35763100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1477",
+      "amount_paise": 23438600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1478",
+      "amount_paise": 8622800,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1479",
+      "amount_paise": 2653100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1480",
+      "amount_paise": 33991300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1481",
+      "amount_paise": 1101300,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1482",
+      "amount_paise": 31567100,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1483",
+      "amount_paise": 22269600,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1484",
+      "amount_paise": 24518400,
+      "verdict": "genuinely_unpaid",
+      "reason": "no evidence of money received on any of the three sources",
+      "outcome": "ALLOW",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1485",
+      "amount_paise": 5414100,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1486",
+      "amount_paise": 33989300,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1487",
+      "amount_paise": 25306900,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1488",
+      "amount_paise": 13741600,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1489",
+      "amount_paise": 7910600,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1490",
+      "amount_paise": 21236300,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1491",
+      "amount_paise": 15548100,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1492",
+      "amount_paise": 30617200,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1493",
+      "amount_paise": 33516000,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1494",
+      "amount_paise": 44123600,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1495",
+      "amount_paise": 6757900,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1496",
+      "amount_paise": 34361200,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1497",
+      "amount_paise": 22094800,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1498",
+      "amount_paise": 44678100,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    },
+    {
+      "id": "ORD-1499",
+      "amount_paise": 46681500,
+      "verdict": "failed_not_debited",
+      "reason": "payment failed and was never debited \u2014 retry, do not dun",
+      "outcome": "DENY",
+      "has_proof": true
+    }
+  ]
+}

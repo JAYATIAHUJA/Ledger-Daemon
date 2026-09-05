@@ -6,8 +6,8 @@ logic (FR-6.2). The audit table is append-only: there is no UPDATE and no
 DELETE anywhere in this codebase (FR-7.1).
 
 Actions: CREATE_PAYMENT_LINK (mock adapter by default; live Razorpay test-mode
-adapter when RZP_TEST_KEY_ID/RZP_TEST_KEY_SECRET are set) and DRAFT_REMINDER
-(stages text; it does not send).
+adapter only through explicit selection with valid test credentials) and
+DRAFT_REMINDER (stages text; it does not send).
 """
 
 from __future__ import annotations
@@ -81,11 +81,12 @@ class MockRazorpayAdapter:
 
 
 class LiveRazorpayAdapter:
-    """One real test-mode call (AC-9). Only constructed when rzp_test_ keys exist."""
+    """One real test-mode call (AC-9), never with live-mode credentials."""
 
     name = "razorpay_test_mode"
 
     def __init__(self, key_id: str, key_secret: str):
+        _validate_test_mode_credentials(key_id, key_secret)
         self.key_id, self.key_secret = key_id, key_secret
 
     def create_payment_link(self, order: Order, amount_paise: int) -> dict:
@@ -107,12 +108,26 @@ class LiveRazorpayAdapter:
             return json.loads(resp.read().decode())
 
 
-def default_adapter():
+def _validate_test_mode_credentials(key_id: str, key_secret: str) -> None:
+    if not key_id or not key_secret:
+        raise ValueError(
+            "Razorpay test-mode adapter requires both RZP_TEST_KEY_ID and "
+            "RZP_TEST_KEY_SECRET"
+        )
+    if key_id.startswith("rzp_live_"):
+        raise ValueError("Razorpay live-mode credentials are refused")
+    if not key_id.startswith("rzp_test_"):
+        raise ValueError("RZP_TEST_KEY_ID must start with rzp_test_")
+
+
+def default_adapter(*, test_mode: bool = False):
+    """Return the offline adapter unless the caller explicitly selects test mode."""
+    if not test_mode:
+        return MockRazorpayAdapter()
+
     key_id = os.environ.get("RZP_TEST_KEY_ID", "")
     key_secret = os.environ.get("RZP_TEST_KEY_SECRET", "")
-    if key_id.startswith("rzp_test_") and key_secret:
-        return LiveRazorpayAdapter(key_id, key_secret)
-    return MockRazorpayAdapter()
+    return LiveRazorpayAdapter(key_id, key_secret)
 
 
 class Executor:

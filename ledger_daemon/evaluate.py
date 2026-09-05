@@ -176,7 +176,7 @@ def render_report(r: EvalReport, date: str = "") -> str:
     lines = [
         f"LEDGER DAEMON — EVALUATION REPORT      seed={r.seed}  n={r.n}  {date}".rstrip(),
         "",
-        f"Match rate ................................ {r.match_rate:.1%}  ({r.matched}/{r.n})",
+        f"Verdict accuracy (match rate) .............. {r.match_rate:.1%}  ({r.matched}/{r.n} orders)",
         f"Throughput ................................ {r.throughput:,} orders/sec",
         f"Unresolved exceptions ..................... {len(r.exceptions)}  -> eval/exceptions.md",
         f"Conformal q_hat ........................... {r.q_hat:.4f}  ({r.q_hat_source})",
@@ -185,7 +185,7 @@ def render_report(r: EvalReport, date: str = "") -> str:
         f"Already-paid orders a naive agent would chase:  {r.w_total}",
         f"Blocked by Ledger Daemon:                       {r.w_blocked}",
         f"DOUBLE-CHASE PREVENTION RATE:                   {r.dcpr:.1%}  "
-        f"[95% CI {r.dcpr_ci[0]:.1%}, {r.dcpr_ci[1]:.1%}]",
+        f"[observed {r.w_blocked}/{r.w_total}; synthetic batch]",
         "",
         f"False-hold rate (unpaid, wrongly blocked):      {r.false_hold_rate:.1%}  "
         f"({r.false_holds}/{r.unpaid_total})",
@@ -198,7 +198,7 @@ def render_report(r: EvalReport, date: str = "") -> str:
         "",
         "---- Downstream Control Demonstration: Why Correct Reconciliation Matters " + "-" * 8,
         f"Actions emitted ........................... {r.actions_emitted}",
-        f"Net recoverable (0.6 x chased) ............ {rupees_str(r.net_recovered_paise)}",
+        f"Modeled recovery (assumed 0.6 x chased) ... {rupees_str(r.net_recovered_paise)}",
         f"Customers wrongly contacted ............... {r.ld_wrong_contacts}  (B0: {r.b0_wrong_contacts})",
         "",
         "---- Verdict distribution " + "-" * 37,

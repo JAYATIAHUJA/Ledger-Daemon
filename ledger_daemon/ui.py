@@ -24,8 +24,11 @@ with a 409 instead of overwriting their answer.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import webbrowser
+import mimetypes
+from urllib.parse import urlsplit, parse_qs, unquote
 from dataclasses import dataclass, field
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -49,6 +52,38 @@ UI_LAYER = "ui"
 
 
 # --------------------------- view model (pure) ------------------------------ #
+
+@dataclass(frozen=True)
+class BatchPresentation:
+    """The only source and evaluation fields permitted in public UI payloads."""
+
+    source_label: str
+    evaluation: str
+    evaluation_report: object | None
+
+
+def batch_presentation(provenance: str, _unsafe_source: str, evaluation: str = "",
+                       evaluation_report: object | None = None) -> BatchPresentation:
+    """Map explicit safe provenance to public labels without reflecting paths.
+
+    Imported datasets have no ground-truth oracle, including Test Mode captures.
+    The source text is intentionally ignored because callers may construct it
+    from a local path.
+    """
+    if provenance == "synthetic":
+        return BatchPresentation("Synthetic batch", evaluation, evaluation_report)
+    if provenance == "test_mode":
+        return BatchPresentation("Test Mode batch", "", None)
+    return BatchPresentation("Imported batch", "", None)
+
+
+def public_batch_summary(orders, verdicts, decisions, certificates,
+                         presentation: BatchPresentation) -> dict:
+    """Build the API payload from the same sanitized presentation as the page."""
+    from .landing import public_summary
+
+    return public_summary(orders, verdicts, decisions, certificates,
+                          presentation.evaluation_report, presentation.source_label)
 
 @dataclass
 class ViewRow:
@@ -351,6 +386,25 @@ def _signoff_html(panels) -> str:
           'on &mdash; not a statutory audit opinion.</p>')
 
 
+def _close_overview_html(panels, view) -> str:
+    """Distinct populations stay labelled; a policy hold is not a match error."""
+    total = len(view.safe) + len(view.blocked) + len(view.needs_you) + view.hidden_clean
+    exceptions = panels.exceptions
+    return ('<h3>Reconciliation overview</h3>' + _kv_table([
+        ('Orders in this batch', str(total)),
+        ('Orders needing review', str(len(view.needs_you))),
+        ('Order value awaiting review', rupees_str(view.total(view.needs_you))),
+        ('Open exception cases', str(exceptions.open_cases) if exceptions else 'not available'),
+        ('Proof certificates attached', str(panels.proofs.built) if panels.proofs else '0'),
+        ('Proofs independently checked on this screen', str(panels.proof_sample)),
+    ]) + '<p class="fine">Order counts, case counts, and source-row counts describe '
+         'different populations. Ground-truth verdict accuracy is shown in Evaluation; '
+         'it is not automatic resolution coverage.</p>'
+         '<p><button data-goto="cases">Review exceptions</button> '
+         '<button data-goto="proofs">Inspect evidence</button> '
+         '<button data-goto="evaluation">See measured results</button></p>')
+
+
 def _sources_html(panels) -> str:
     health = panels.source
     if health is None:
@@ -513,14 +567,19 @@ def _evaluation_html(panels) -> str:
 def render_html(view: View, source: str, panels=None) -> str:
     v = view
     css = """
-:root { --bg:#f5f6f8; --card:#ffffff; --line:#e6e8ee; --tx:#1c2230; --dim:#68718a;
+@import url('/assets/fonts.css');
+:root { --bg:#f4f1e8; --card:#fffef9; --line:#deded2; --tx:#33382d; --dim:#797f6e;
         --safe:#0e9f6e; --safebg:#e6f6f0; --block:#d64550; --blockbg:#fbeaec;
         --hold:#b47d10; --holdbg:#fdf3df; }
 * { box-sizing:border-box; margin:0 }
 body { background:var(--bg); color:var(--tx); padding:32px clamp(16px,4vw,48px);
-       font:15px/1.55 -apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif }
+       font:15px/1.55 'DM Sans',"Segoe UI",sans-serif }
 header { display:flex; flex-wrap:wrap; align-items:baseline; gap:12px; margin-bottom:8px }
-h1 { font-size:22px; font-weight:650; letter-spacing:-.01em }
+h1 { font:36px/1.1 'Instrument Serif',Georgia,serif; letter-spacing:-.01em }
+button { font:inherit; cursor:pointer; border:1px solid var(--line); padding:8px 14px;
+         background:var(--card); color:var(--tx); border-radius:5px }
+button:hover { background:#e9eedf }
+button:focus-visible { outline:2px solid #5b7049; outline-offset:3px }
 .src { color:var(--dim); font-size:14px }
 .tag { margin-left:auto; color:var(--dim); font-size:13px }
 .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:18px 0 10px }
@@ -648,7 +707,7 @@ details.card pre { margin:0; padding:12px 14px; border-top:1px solid var(--line)
         background:var(--bg); overflow-x:auto; font-size:11px; line-height:1.5 }
 .tablewrap { overflow-x:auto }
 """
-    js = """
+    js = r"""
 async function resolve(btn, oid, res, version) {
   btn.disabled = true;
   const r = await fetch('/resolve', {method:'POST',
@@ -682,7 +741,7 @@ document.addEventListener('click', e => {
 });
 (function () {
   let start = 'close';
-  try { start = localStorage.getItem('ld.panel') || 'close'; } catch (e) { /* ignore */ }
+  try { start = location.hash.slice(1) || localStorage.getItem('ld.panel') || 'close'; } catch (e) { /* ignore */ }
   if (!document.querySelector(`.panel[data-panel="${start}"]`)) start = 'close';
   showPanel(start);
 })();
@@ -728,7 +787,7 @@ meaning saves rather than routine agreement.</p>"""
         f'aria-selected="{"true" if key == "close" else "false"}">{label}</button>'
         for key, label in tabs)
     bodies = {
-        "close": _signoff_html(p) + chase,
+        "close": _signoff_html(p) + _close_overview_html(p, v),
         "chase": chase,
         "sources": _sources_html(p),
         "proofs": _proofs_html(p, v),
@@ -748,7 +807,7 @@ meaning saves rather than routine agreement.</p>"""
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ledger Daemon — Close</title>
 <style>{css}</style></head><body>
-<header><h1>Ledger Daemon</h1><span class="src">{escape(source)}</span>
+<header><h1><a href="/" style="color:inherit;text-decoration:none">Ledger Daemon</a></h1><span class="src">{escape(source)}</span>
 <span class="tag">every decision below is auditable to the rupee</span></header>
 <nav class="tabs" role="tablist">{nav}</nav>
 {sections}
@@ -762,7 +821,7 @@ nothing on this screen recomputes a verdict or a rupee.</footer>
 
 def build_panels(orders, verdicts, decisions, execu, store, state, *,
                  captures=(), bank=(), evaluation: str = "", config_hash: str = "",
-                 calibration_id: str = "", risk_calibration=None, stages=()):
+                 calibration_id: str = "", risk_calibration=None, stages=(), finance_events=()):
     """Gather the dashboard once. Cheap enough to redo per request except the
     proof sample, which is why the caller holds on to the result."""
     from dataclasses import asdict as _asdict
@@ -787,7 +846,7 @@ def build_panels(orders, verdicts, decisions, execu, store, state, *,
         capture_rows=[_asdict(c) for c in captures],
         bank_rows=[_asdict(b) for b in bank],
         certificates=certificates,
-        source_rows_list=source_rows(list(orders), list(captures), list(bank)),
+        source_rows_list=source_rows(list(orders), list(captures), list(bank), finance_events=finance_events),
         cases=cases, audit=audit,
         order_ids=[o.order_id for o in orders], held_amounts=held,
         config_hash=config_hash, calibration_id=calibration_id,
@@ -799,7 +858,8 @@ def serve(orders: list[Order], verdicts: dict, decisions: dict,
           execu: Executor, source: str, port: int = PORT,
           open_browser: bool = True, proofs_dir: str = "",
           captures=(), bank=(), evaluation: str = "", config_hash: str = "",
-          calibration_id: str = "", risk_calibration=None, stages=()) -> None:
+          calibration_id: str = "", risk_calibration=None, stages=(), evaluation_report=None,
+          finance_events=(), provenance: str = "imported") -> None:
     # Cases live in the same WAL database as the audit log, and are opened
     # idempotently: restarting the server picks up whatever states the
     # previous session's analysts left behind.
@@ -814,30 +874,90 @@ def serve(orders: list[Order], verdicts: dict, decisions: dict,
         "cases": {c.order_id: c for c in store.list_cases()},
         "certificates": load_certificates(proofs_dir) if proofs_dir else {},
     }
+    proof_manifest = None
+    if proofs_dir:
+        try:
+            with open(os.path.join(proofs_dir, "proof-manifest.json"), encoding="utf-8") as fh:
+                loaded_manifest = json.load(fh)
+            if isinstance(loaded_manifest, dict):
+                proof_manifest = loaded_manifest
+        except (OSError, json.JSONDecodeError):
+            pass
+    presentation = batch_presentation(provenance, source, evaluation, evaluation_report)
+    from .landing import static_asset, check_proof, batch_zip
+    from .certificates import source_rows
+    from .model_benchmark import FIXTURES, benchmark_readers
+    from .evidence_reader import RegexReader
+    proof_sources = source_rows(list(orders), list(captures), list(bank), finance_events=finance_events)
+    reader_score = benchmark_readers(FIXTURES, [RegexReader()]).scores[0].to_dict()
+
+    def summary():
+        return public_batch_summary(orders, verdicts, decisions,
+                                    state['certificates'], presentation)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):  # keep the terminal clean
             pass
 
         def _send(self, code: int, body: bytes,
-                  ctype: str = "text/html; charset=utf-8") -> None:
+                  ctype: str = "text/html; charset=utf-8", filename: str = "") -> None:
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "no-store")
+            if filename:
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
             self.end_headers()
             self.wfile.write(body)
 
         def do_GET(self):
-            if self.path not in ("/", "/index.html"):
+            url = urlsplit(self.path)
+            path = unquote(url.path)
+            if path in ('/', '/index.html'):
+                return self._send(200, static_asset('landing.html').read_bytes())
+            if path.startswith('/assets/'):
+                asset = static_asset(path[len('/assets/'):])
+                if asset is None:
+                    return self._send(404, b'asset not found', 'text/plain')
+                return self._send(200, asset.read_bytes(), mimetypes.guess_type(asset.name)[0] or 'application/octet-stream')
+            if path == '/api/summary':
+                return self._send(200, json.dumps(summary()).encode(), 'application/json')
+            if path == '/api/readers':
+                return self._send(200, json.dumps(reader_score).encode(), 'application/json')
+            if path == '/download/report.json':
+                return self._send(200, json.dumps(summary(), indent=2).encode(),
+                                  'application/json', 'ledger-daemon-batch-report.json')
+            if path == '/download/batch.zip':
+                return self._send(200, batch_zip(
+                    orders, captures, bank, finance_events,
+                    proof_manifest=proof_manifest,
+                ),
+                                  'application/zip', 'ledger-daemon-sample.zip')
+            if path.startswith('/api/proof/') or path.startswith('/download/proof/'):
+                download = path.startswith('/download/')
+                oid = path.rsplit('/', 1)[-1]
+                if download and oid.endswith('.json'):
+                    oid = oid[:-5]
+                certificate = state['certificates'].get(oid)
+                if certificate is None:
+                    return self._send(404, b'proof not found', 'text/plain')
+                if download:
+                    return self._send(200, certificate.to_json().encode(), 'application/json', 'ledger-proof.json')
+                checked = check_proof(certificate, proof_sources,
+                    tamper=parse_qs(url.query).get('tamper') == ['1'],
+                    config_hash=config_hash, calibration_id=calibration_id)
+                return self._send(200, json.dumps(checked).encode(), 'application/json')
+            if path != '/app':
                 return self._send(404, b"not found", "text/plain")
             view = build_view(orders, verdicts, decisions, state["resolutions"],
                               state["cases"], state["certificates"])
             panels = build_panels(
                 orders, verdicts, decisions, execu, store, state,
-                captures=captures, bank=bank, evaluation=evaluation,
+                captures=captures, bank=bank, evaluation=presentation.evaluation,
                 config_hash=config_hash, calibration_id=calibration_id,
-                risk_calibration=risk_calibration, stages=stages)
-            self._send(200, render_html(view, source, panels).encode())
+                risk_calibration=risk_calibration, stages=stages, finance_events=finance_events)
+            self._send(200, render_html(view, presentation.source_label, panels).encode())
 
         def do_POST(self):
             if self.path != "/resolve":
@@ -867,7 +987,7 @@ def serve(orders: list[Order], verdicts: dict, decisions: dict,
 
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     url = f"http://127.0.0.1:{port}"
-    print(f"chase list at {url}  (Ctrl+C to stop)")
+    print(f"landing page at {url} | controller at {url}/app  (Ctrl+C to stop)")
     if open_browser:
         webbrowser.open(url)
     try:

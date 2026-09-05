@@ -2,6 +2,10 @@ __pycache__/
 *.pyc
 .pytest_cache/
 out/
+data/live/
+data/test-mode/
+data/test-mode-raw/
+reconciliation-raw.json
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm

@@ -67,10 +67,11 @@ order's `due_date + 3`, policy rule R2 **holds** rather than chases — which is
 why the false-hold rate is 4.0% and not lower. Two of the fifty unpaid orders in
 the clean profile are held for exactly this reason.
 
-Real-data ingestion is partial by construction: `ingest` pulls Razorpay
-**test-mode** orders and payments, and processed settlements stand in for the
-bank feed until a statement export replaces them. No ground truth is written for
-real data, so no accuracy number can be computed from it. See
+Test Mode ingestion is partial by construction: `ingest` can read Razorpay
+**Test Mode** orders, payments, refunds and settlement records, while processed
+settlements stand in for the bank feed until a statement export replaces them.
+No credentialed Test Mode run is published in this repository. No ground truth
+is written for these objects, so no accuracy number can be computed from them. See
 [SIMULATED_VS_REAL.md](SIMULATED_VS_REAL.md).
 
 ## 6. Scope of the concurrency and durability claims

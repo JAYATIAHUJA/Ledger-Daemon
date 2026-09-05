@@ -1,4 +1,4 @@
-# Simulated, schema-derived, semi-real, live
+# Synthetic, schema-derived, Test Mode, merchant-provided
 
 Four data classes run through this system. They are not interchangeable, and a
 number computed on one says nothing about another. Every claim in
@@ -8,8 +8,8 @@ number computed on one says nothing about another. Every claim in
 |---|---|---|---|---|
 | **synthetic** | a generated world with labels written at injection time | `ledger_daemon/datagen.py` | yes, by construction | yes — every number in CLAIMS.md |
 | **schema-derived** | rows shaped like a real export, with values invented | benchmark fixtures, test fixtures | only where hand-labelled | only for regression floors |
-| **semi-real** | real records from a sandbox, standing in for a production feed | Razorpay test mode via `ingest` | no | no |
-| **live** | a merchant's actual statement export | `import-statement` on an HDFC/ICICI CSV | no | no |
+| **Test Mode API** | sandbox objects; no production money | Razorpay Test Mode via `ingest` | no | no |
+| **merchant-provided** | a merchant's statement export | `import-statement` on an HDFC/ICICI CSV | no | no |
 
 ## synthetic
 
@@ -37,20 +37,23 @@ into a narration — with character-span labels. Real shape, invented content. I
 is a regression gate on the extraction boundary, not a sample of production
 traffic.
 
-## semi-real
+## Test Mode API
 
-`python -m ledger_daemon ingest` pulls `/v1/orders`, `/v1/payments` and
-`/v1/settlements` from Razorpay **test mode**. Live-mode keys are refused by
-design. The orders and payments are real API records; **processed settlements
-stand in for the bank feed** until a statement export replaces them, which means
-the third source is not independent of the second — the exact independence the
-whole method depends on.
+`python -m ledger_daemon ingest` can read `/v1/orders`, `/v1/payments`,
+`/v1/refunds`, `/v1/settlements`, and the combined settlement-reconciliation
+feed from Razorpay **Test Mode**. Live-mode keys are refused by design. These are
+sandbox API objects and use no production money. **Processed settlements stand
+in for the bank feed** until a statement export replaces them, so the third
+source is not independent of the second.
 
-No `ground_truth.csv` is written, because real data has no oracle. `reconcile`
+The repository currently publishes no credentialed Test Mode run. Its website,
+accuracy figures, and rupee figures all come from the synthetic class above.
+
+No `ground_truth.csv` is written, because these Test Mode objects have no labelled oracle. `reconcile`
 and the operations screen run unchanged; the evaluation panel says plainly that
 nothing was scored.
 
-## live
+## merchant-provided
 
 `python -m ledger_daemon import-statement <file>` parses a real HDFC or ICICI
 netbanking CSV export into the canonical bank feed: header auto-detected,
@@ -61,7 +64,7 @@ unrecognised header fails loudly rather than guessing; `--bank` forces a shape.
 These export layouts are written to the commonly seen shapes, not to a published
 specification — banks change them without notice.
 
-Running live data through the system produces verdicts and proofs you can
+Running merchant-provided data through the system produces verdicts and proofs you can
 inspect. It does not produce an accuracy figure, and no accuracy figure in this
 repository was computed from it.
 
@@ -70,4 +73,4 @@ repository was computed from it.
 A metric may be published only for the **synthetic** class, and only with its
 profile, seed, sample size and command attached. Anything measured on
 schema-derived data is labelled a regression floor. Nothing is measured on
-semi-real or live data at all.
+Test Mode or merchant-provided data at all.

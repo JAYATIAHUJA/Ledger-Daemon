@@ -155,7 +155,7 @@ def cmd_import_statement(args) -> int:
     path = write_bank_csv(txns, args.out)
     credits = sum(1 for t in txns if t.credit_debit == "credit")
     print(f"parsed {len(txns)} rows ({credits} credits) -> {os.path.abspath(path)}")
-    print(f"  python -m ledger_daemon reconcile --dir {args.out}")
+    print(f"  python -m ledger_daemon reconcile --batch {args.out}")
     print(f"  python -m ledger_daemon ui --dir {args.out}")
     return 0
 
@@ -171,6 +171,10 @@ def cmd_ui(args) -> int:
     stages: list[StageRow] = []
     calibration_id = ""
     evaluation = ""
+    evaluation_report = None
+    finance_events = None
+    provenance = "synthetic"
+    proofs_dir = p["proofs"]
 
     def timed(name: str, detail: str, fn):
         started = time.perf_counter()
@@ -180,10 +184,27 @@ def cmd_ui(args) -> int:
 
     if args.dir:
         orders, captures, bank, truth = timed(
-            "load", f"batch {os.path.abspath(args.dir)}", lambda: load_batch(args.dir))
+            "load", "imported batch", lambda: load_batch(args.dir))
+        finance_events = load_finance_events(args.dir)
         result = timed("reconcile", "deterministic, zero LLM",
-                       lambda: reconcile(orders, captures, bank, q_hat=0.001))
-        source = f"live batch: {os.path.abspath(args.dir)}"
+                       lambda: reconcile(orders, captures, bank, q_hat=0.001,
+                                         finance_events=finance_events))
+        source = "Imported batch"
+        receipt_path = os.path.join(args.dir, "razorpay_test_mode_receipt.json")
+        try:
+            with open(receipt_path, encoding="utf-8") as fh:
+                receipt = json.load(fh)
+            if (receipt.get("source") == "razorpay_test_mode_api"
+                    and receipt.get("mode") == "test"):
+                provenance = "test_mode"
+                source = "Razorpay Test Mode batch"
+        except (OSError, ValueError, TypeError):
+            provenance = "imported"
+        else:
+            if provenance != "test_mode":
+                provenance = "imported"
+        candidate_proofs = os.path.join(args.dir, "proofs")
+        proofs_dir = candidate_proofs if os.path.isdir(candidate_proofs) else ""
     else:
         assert_disjoint_seeds(args.seed + CAL_SEED_OFFSET, args.seed)
         cal = timed("calibrate", f"seed {args.seed + CAL_SEED_OFFSET}, n={args.n}",
@@ -191,14 +212,16 @@ def cmd_ui(args) -> int:
                              load_batch(p["cal_batch"]))[1])
         q_hat, fs_model, _probs = calibrate(cal[0], cal[1], cal[2], cal[3])
         calibration_id = calibration_identity(
-            q_hat, batch_root(source_hash_map(source_rows(cal[0], cal[1], cal[2]))))
+            q_hat, batch_root(source_hash_map(source_rows(cal[0], cal[1], cal[2],
+                finance_events=load_finance_events(p["cal_batch"])))))
         orders, captures, bank, truth = timed(
             "generate", f"seed {args.seed}, n={args.n}",
             lambda: (generate(args.seed, args.n, p["eval_batch"]),
                      load_batch(p["eval_batch"]))[1])
+        finance_events = load_finance_events(p["eval_batch"])
         result = timed("reconcile", f"q_hat {q_hat:.4f}, four passes",
                        lambda: reconcile(orders, captures, bank, q_hat=q_hat,
-                                         fs_model=fs_model))
+                                         fs_model=fs_model, finance_events=finance_events))
         source = f"synthetic world, seed {args.seed}, n={args.n}"
         # Issue the bundle this screen will render. Without it the proof panel
         # has nothing to show and the controller cannot sign anything -- which
@@ -208,41 +231,50 @@ def cmd_ui(args) -> int:
               lambda: write_proof_bundle(
                   p["proofs"], orders, captures, bank, result.verdicts,
                   config_hash=recon_config_hash(FULL),
-                  calibration_id=calibration_id))
+                  calibration_id=calibration_id, finance_events=finance_events))
         if truth:
-            evaluation = render_report(evaluate(args.seed, orders, captures, result, truth))
+            evaluation_report = evaluate(args.seed, orders, captures, result, truth)
+            evaluation = render_report(evaluation_report)
 
     _ld, decisions = timed("policy", "R1-R7, first DENY or HOLD wins",
                            lambda: run_ledger_daemon(orders, result))
     execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
-    # Only the demo batch owns the issued bundle. A proof from a different
-    # batch would render against the wrong rows -- the precise confusion this
-    # system exists to prevent -- so a live --dir run shows no proofs at all.
     serve(orders, result.verdicts, decisions, execu, source,
           port=args.port, open_browser=not args.no_browser,
-          proofs_dir="" if args.dir else p["proofs"],
+          proofs_dir=proofs_dir,
           captures=captures, bank=bank, evaluation=evaluation,
           config_hash=recon_config_hash(FULL),
-          calibration_id=calibration_id, stages=stages)
+          calibration_id=calibration_id, stages=stages, evaluation_report=evaluation_report,
+          finance_events=finance_events, provenance=provenance)
     return 0
 
 
 def cmd_ingest(args) -> int:
     from .ingest import IngestError, ingest
     try:
-        counts = ingest(args.out, limit=args.limit)
+        counts = ingest(
+            args.out,
+            limit=args.limit,
+            year=getattr(args, "year", None),
+            month=getattr(args, "month", None),
+            day=getattr(args, "day", None),
+        )
     except IngestError as exc:
         print(f"ingest failed: {exc}")
         return 1
-    print(f"wrote {os.path.abspath(args.out)}:")
+    print(f"wrote Test Mode batch to {args.out}:")
     print(f"  merchant_orders.csv    {counts['orders']} orders  (/v1/orders)")
-    print(f"  gateway_captures.csv   {counts['captures']} captures  (/v1/payments; "
-          f"{counts['skipped_payments']} in-flight payments skipped)")
+    print(f"  gateway_captures.csv   {counts['captures']} captures/refunds  "
+          f"(/v1/payments + /v1/refunds; {counts['skipped_payments']} in-flight "
+          f"payments and {counts['skipped_refunds']} incomplete refunds skipped)")
     print(f"  bank_statement.csv     {counts['bank']} settlement credits standing in "
           f"for the bank feed  ({counts['unprocessed_settlements']} unprocessed skipped)")
     print(f"  quarantine.jsonl       {counts['quarantined']} malformed or duplicate source rows")
-    print("no ground_truth.csv: real data has no oracle. next:")
-    print(f"  python -m ledger_daemon reconcile --dir {args.out}")
+    print(f"  settlement links       {counts['linked_captures']} captures/refunds linked "
+          "from /v1/settlements/recon/combined")
+    print(f"  public-safe receipt    {counts['receipt']}")
+    print("no ground_truth.csv: Test Mode data has no known answer. next:")
+    print(f"  python -m ledger_daemon reconcile --batch {args.out}")
     return 0
 
 
@@ -775,18 +807,21 @@ def main(argv=None) -> int:
     ist.add_argument("--bank", choices=["auto", "hdfc", "icici", "canonical"], default="auto")
     ist.set_defaults(fn=cmd_import_statement)
 
-    u = sub.add_parser("ui", help="serve the one-screen chase list on localhost")
+    u = sub.add_parser("ui", help="serve the landing page and interactive finance controller locally")
     u.add_argument("--seed", type=int, default=42)
     u.add_argument("--n", type=int, default=500)
-    u.add_argument("--dir", default="", help="reconcile this batch dir (e.g. an ingested live one) instead of a synthetic world")
+    u.add_argument("--dir", default="", help="reconcile this imported batch directory instead of a synthetic sample")
     u.add_argument("--out", default="out")
     u.add_argument("--port", type=int, default=7042)
     u.add_argument("--no-browser", action="store_true")
     u.set_defaults(fn=cmd_ui)
 
-    ig = sub.add_parser("ingest", help="pull real Razorpay test-mode orders/payments/settlements into a batch dir")
-    ig.add_argument("--out", default=os.path.join("data", "live"))
+    ig = sub.add_parser("ingest", help="read Razorpay Test Mode objects into a private batch directory")
+    ig.add_argument("--out", default=os.path.join("data", "test-mode-raw"))
     ig.add_argument("--limit", type=int, default=1000, help="max rows per entity")
+    ig.add_argument("--year", type=int, help="settlement recon year (default: current UTC year)")
+    ig.add_argument("--month", type=int, help="settlement recon month (default: current UTC month)")
+    ig.add_argument("--day", type=int, help="optional settlement recon day")
     ig.set_defaults(fn=cmd_ingest)
 
     pv = sub.add_parser("prove", help="demonstrate the verdict-exhaustiveness guard firing")

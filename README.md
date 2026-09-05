@@ -1,13 +1,25 @@
 # Ledger Daemon
 
-**100.0% of already-paid orders that a schedule-driven dunning agent would have chased were blocked — with a 4.0% false-hold rate on genuinely unpaid orders, and ₹0 wrongly chased.**
+**Know which orders are paid. See which ones need checking.**
+
+Ledger Daemon compares your orders, Razorpay payments, and bank deposits. It finds unpaid orders, flags unclear matches, and shows the records behind each result. This helps your team avoid chasing a customer who already paid. Open the local app with:
+
+```bash
+python -m ledger_daemon ui
+```
+
+At `/`, try sample orders, search payment results, check a proof, or watch the app and command-line demos. At `/app`, review the full batch and record human decisions. Fonts and artwork work offline. The GitHub Pages site in `docs/` is exported from this same landing page; it shows saved sample results. See [website setup and export](docs/PAGES.md).
+
+**Synthetic result: 96.8% verdict accuracy (484/500 orders), 100.0% double-chase prevention, 4.0% false holds on genuinely unpaid orders, and ₹0 wrongly chased.**
 (synthetic data, seed 42, n = 500, offline, judge fingerprint `45583b83cbff6bd0`. Every number in this README is in [CLAIMS.md](CLAIMS.md) with the command that produced it.)
 
-**Thesis: you cannot autonomously chase money until you can prove it hasn't already arrived.**
+**Synthetic demo and metrics. It uses a mock executor; no credentialed Razorpay Test Mode API run or payment-link creation is included.**
+
+Verdict accuracy means agreement with ground-truth labels, not automatic resolution coverage. Policy-held orders, exception cases, and source-row exceptions are separate populations. Optional model uplift has not been demonstrated; the demo reports the actual regex benchmark rather than attributing it to an LLM.
 
 Razorpay AI Buildathon 2026 · **Track 04, AI Finance Controller** — the only track this project is submitted under. Revenue recovery appears once, as a *Downstream Control Demonstration: Why Correct Reconciliation Matters*, and never as a second submission.
 
-Ledger Daemon is a local-first, headless MCP server that performs deterministic three-way reconciliation (payment gateway × bank statement × merchant books) and uses the result as a **hard precondition** on any autonomous revenue-recovery action. Chasing on invoice or gateway status alone is where settlement lag, late authorisation and out-of-band NEFT/UPI turn into a paying customer being dunned — and "collecting a debt not owed" has been the single largest US debt-collection complaint category every year since 2013.
+The local-first controller also exposes an MCP server. Deterministic three-way reconciliation (payment gateway × bank statement × merchant books) provides evidence for the close decision and is a hard precondition on downstream recovery actions.
 
 ## One command an evaluator can run
 
@@ -17,7 +29,7 @@ python -m ledger_daemon judge --seed 42 --n 500 --out out/judge
 
 Eight profiles — clean, realistic, stress, distribution-shift, adversarial, source-incomplete, high-collision, concurrent — each a full generate → validate → reconcile → gate → execute → prove → verify pass with a declared fault plan in front of it. It grades eleven injected attacks against oracles they declared beforehand, checks six hard invariants, exits nonzero if any fails, and writes `summary.json`, `cases.jsonl`, `attacks.json`, `latency.json`, `proof-manifest.json` and `claims.md` either way.
 
-Offline. No keys. No network. 26.9 s. Full results in [EVALUATION.md](EVALUATION.md).
+Offline, with no keys or network. The recorded 26.9 s run came from one laptop and timing varies by machine. Full results are in [EVALUATION.md](EVALUATION.md).
 
 | document | what it settles |
 |---|---|
@@ -25,7 +37,7 @@ Offline. No keys. No network. 26.9 s. Full results in [EVALUATION.md](EVALUATION
 | [EVALUATION.md](EVALUATION.md) | the eight profiles, the eleven graded attacks, the cost table |
 | [METHODS.md](METHODS.md) | schemas, passes, the score, abstention, the proof and its verifier, metric definitions |
 | [LIMITATIONS.md](LIMITATIONS.md) | what this has *not* shown, worst first |
-| [SIMULATED_VS_REAL.md](SIMULATED_VS_REAL.md) | synthetic, schema-derived, semi-real, live — and which may produce a metric |
+| [SIMULATED_VS_REAL.md](SIMULATED_VS_REAL.md) | synthetic, schema-derived, Test Mode API, and merchant-provided categories — and which may produce a metric |
 | [SECURITY.md](SECURITY.md) | PII masking, the test-mode guard, the model boundary, audit integrity |
 | [WHAT_BROKE.md](WHAT_BROKE.md) | what broke building the controller, including what is still open |
 | [BROKEN.md](BROKEN.md) | what broke building the reconciliation engine |
@@ -39,9 +51,9 @@ python -m ledger_daemon demo --seed 42 --n 500
 Fully offline. Zero signup, zero cloud account, zero required dependencies beyond the Python 3.11+ standard library. Tests: `python -m pytest -q` — the suite prints its own count, so this page does not have one to go stale.
 
 ```bash
-python -m ledger_daemon ui          # the chase list: one screen, three columns, localhost
-python -m ledger_daemon ingest      # pull real Razorpay test-mode data (needs test keys)
-python -m ledger_daemon import-statement bank.csv   # parse a real HDFC/ICICI statement export
+python -m ledger_daemon ui          # botanical landing + working controller, localhost
+python -m ledger_daemon ingest      # fetch Razorpay Test Mode API objects; no real money moves (needs test keys)
+python -m ledger_daemon import-statement bank.csv   # parse an HDFC/ICICI statement export
 python -m ledger_daemon sweep       # the whole pipeline on 20 unseen seeds
 python -m ledger_daemon ablate      # 5-config ablation ladder + risk-coverage curve
 python -m ledger_daemon crosscheck  # independent splink cross-check of the matcher
@@ -57,19 +69,19 @@ python -m ledger_daemon mcp         # run as an MCP server over stdio
 python -m ledger_daemon learn-rule-demo --out out/rule-demo
 ```
 
-This executes the real rule store end to end: a verified human case resolution compiles to bounded JSON, a pre-replay approval attempt is rejected, authenticated confirmed and attack corpora produce a signed zero-regression replay receipt, an independent reviewer approves the exact version, and activation produces a receipt that is bound into a copied reconciliation config. It writes `rule-lifecycle.json`, an inspectable SQLite history, and `rule-lifecycle.html`—a judge-facing operational panel rather than a chat transcript. No model can propose executable code or grant itself approval.
+This executes the stored rule set end to end: a verified human case resolution compiles to bounded JSON, a pre-replay approval attempt is rejected, authenticated confirmed and attack corpora produce a signed zero-regression replay receipt, an independent reviewer approves the exact version, and activation produces a receipt that is bound into a copied reconciliation config. It writes `rule-lifecycle.json`, an inspectable SQLite history, and `rule-lifecycle.html`—a judge-facing operational panel rather than a chat transcript. No model can propose executable code or grant itself approval.
 
 ```
 LEDGER DAEMON — EVALUATION REPORT      seed=42  n=500
 
-Match rate ................................ 96.8%  (484/500)
+Verdict accuracy (match rate) .............. 96.8%  (484/500 orders)
 Unresolved exceptions ..................... 30  -> eval/exceptions.md
 Conformal q_hat ........................... 0.0010  (calibrated)
 
 ---- Double-chase prevention ----------------------------------
 Already-paid orders a naive agent would chase:  100
 Blocked by Ledger Daemon:                       100
-DOUBLE-CHASE PREVENTION RATE:                   100.0%  [95% CI 100.0%, 100.0%]
+DOUBLE-CHASE PREVENTION RATE:                   100.0%  [observed 100/100; synthetic batch]
 
 False-hold rate (unpaid, wrongly blocked):      4.0%  (2/50)
 
@@ -110,13 +122,14 @@ The false-hold rate is always printed next to DCPR — without it, DCPR is gamea
 
 ### Trust boundaries
 
-| Layer | May move money? | May write state? | LLM involved? |
+| Capability | External object / side effect | Moves money? | LLM involved? |
 |---|---|---|---|
 | Reconciliation | no | no | **never** |
-| Verdict resolution | no | no | never |
+| Verdict resolution | audit record only | no | never |
 | LLM proposal layer | no | no | optional, sandboxed |
 | Policy engine | no | no | never |
-| Executor | yes (test mode) | audit log only | never |
+| Test Mode payment link | External object / side effect | Does not move money | never |
+| Mock executor in the published demo | no external API call | no | never |
 
 ### Why this matcher is defensible
 
@@ -141,11 +154,11 @@ The fix is three deliberate pieces, not a tolerance band:
 - With matching typed evidence, the proof certificate binds the tax-evidence row and its amount. The independent verifier rejects raw PAN values, mismatched amounts, future-effective rules, missing evidence, and tampering.
 - Tax applicability is not inferred by this project. The rule id and certificate reference come from an external tax/accounting source; this remains an operational control, not a statutory audit opinion.
 
-Adding the verdict tripped `_assert_exhaustive()` before any of that logic existed — the policy engine refused to import until someone declared what collections does about withheld tax. That is the exhaustiveness guard doing its job on a real feature, not in a demo.
+Adding the verdict tripped `_assert_exhaustive()` before any of that logic existed — the policy engine refused to import until someone declared what collections does about withheld tax. That is the exhaustiveness guard doing its job on an implemented feature, not in a demo.
 
 ## Ablation: every component earns its place
 
-`python -m ledger_daemon ablate` — real numbers, seed 42 (full table + the conformal risk-coverage curve printed by the command):
+`python -m ledger_daemon ablate` — synthetic evaluation numbers, seed 42 (full table + the conformal risk-coverage curve printed by the command):
 
 | Configuration | Match rate | DCPR | Exceptions | ₹ wrongly chased |
 |---|---|---|---|---|
@@ -184,7 +197,7 @@ python -m ledger_daemon prove
 
 It injects an unhandled verdict into the live enum and shows the policy engine refusing to load. This is the layer that turned the taxonomy from documentation into a constraint — and it is not hypothetical: both verified and merely possible TDS states were added through exactly this gate.
 
-**"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught a real divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
+**"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught an observed divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
 
 ## The chase list (one screen)
 
@@ -194,13 +207,13 @@ It injects an unhandled verdict into the live enum and shows the policy engine r
 - **BLOCKED** — customers a naive duner would have chased, wrongly, with the rupees protected and the exact rule that fired on every row. Orders where books and bank simply agree are counted in the footer, not shown — BLOCKED means *saves*, not routine agreement.
 - **NEEDS YOU** — the honest abstentions, each resolvable in one click: *payment received* blocks the chase, *nothing arrived* releases it. Every click lands in the same append-only sqlite audit trail as the machine's decisions, idempotently — a resolution is evidence recorded, not a state silently mutated.
 
-`--dir data/live` points the same screen at an ingested real-data batch.
+`--dir data/test-mode-raw` points the same screen at an imported/Test Mode batch. Imported/Test Mode records are not evidence for the published synthetic metrics and have no generated ground-truth score.
 
-## Real data in (test mode)
+## Optional Razorpay Test Mode capability
 
-`python -m ledger_daemon ingest` pulls `/v1/orders`, `/v1/payments` and `/v1/settlements` from Razorpay test mode (same env keys as the executor; live-mode keys are refused by design) and writes the canonical batch CSVs, so `reconcile` and `ui` run unchanged on real gateway records. Stated plainly in the module: orders and payments are real; processed settlements stand in for the bank feed until a statement export replaces them; and no ground truth is written, because real data has no oracle.
+`python -m ledger_daemon ingest` can optionally fetch Razorpay Test Mode API objects from `/v1/orders`, `/v1/payments`, `/v1/refunds`, `/v1/settlements`, and `/v1/settlements/recon/combined` when the operator supplies test keys (production-mode keys are refused by design). The recon feed links payments and refunds to settlements. This capability is not evidence from the published demo or metrics, and Test Mode objects do not move real money. It writes canonical batch CSVs so `reconcile` and `ui` can run on gateway records; those imported records have no ground truth score because they have no generated oracle.
 
-`python -m ledger_daemon import-statement <file>` completes the triangle: it parses a real HDFC or ICICI netbanking CSV export (auto-detected from the header, preamble lines skipped, amounts string-parsed straight to integer paise — the no-float contract holds at the ingestion boundary too) and replaces the batch's bank feed, UTRs recovered from the reference column or the narration itself. Unrecognised headers fail loudly instead of guessing; `--bank` forces a shape when detection is wrong.
+`python -m ledger_daemon import-statement <file>` completes the triangle: it parses an HDFC or ICICI netbanking CSV export (auto-detected from the header, preamble lines skipped, amounts string-parsed straight to integer paise — the no-float contract holds at the ingestion boundary too) and replaces the batch's bank feed, UTRs recovered from the reference column or the narration itself. Unrecognised headers fail loudly instead of guessing; `--bank` forces a shape when detection is wrong.
 
 ## When the data shifts, the matcher loses its licence
 
@@ -226,12 +239,16 @@ The shift above is declared, not mined from a lucky seed — see D18 in DECISION
 
 Every verdict is issued with a certificate: the source rows it consumed (bound by SHA-256), the signed integer-paise terms that must sum to zero, the rule ids, and the calibration and config identities it was decided under. `proof_hash` is the SHA-256 of the canonical JSON of all of it.
 
+Each result proof/supporting records package detects changes to exported evidence but cannot prove source systems are truthful. It supports checking what was exported and how the controller calculated its result; it does not establish that an upstream gateway, bank, or books system reported the truth.
+
 ```
 python -m ledger_daemon verify-proof out/proofs/ORD-1381.json --sources out/data/batch
 {"errors": [], "order_id": "ORD-1381", "proof_hash": "198629be...", "status": "VALID"}
 ```
 
 `verifier.py` imports no reconciliation, scoring or conformal code — it recomputes the claim from the source files and reports error codes. Tamper with one paise, one hash, one rule id, or the verdict, and it says so.
+
+For a proof downloaded from the public sample, extract the sample-data ZIP and save the proof JSON beside its included `proof-manifest.json`; use that extracted directory as `--sources`.
 
 `python -m ledger_daemon explain ORD-1381` draws the same certificate as a tree, and the workbench renders it inline behind each row. All three surfaces read the issued bundle rather than rebuilding it, so they print one proof hash. Nodes marked `[ok]` are recomputed on the spot (proof hash, amount equation); nodes marked `[claim]` are what `verify-proof` settles against the sources — a tree that painted those green would be theatre.
 
@@ -254,9 +271,9 @@ case_transition(case_id, expected_version, target, actor) -> one declared FSM ho
 {"mcpServers": {"ledger-daemon": {"command": "python", "args": ["-m", "ledger_daemon", "mcp", "--root", "out"], "cwd": "<repo path>"}}}
 ```
 
-## Live Razorpay test-mode call
+## Optional Test Mode payment-link capability
 
-Set `RZP_TEST_KEY_ID` / `RZP_TEST_KEY_SECRET` and the executor creates one real test-mode payment link. Without keys, a deterministic mock adapter with the same interface is used — a missing key never breaks the demo.
+The code exposes an explicit programmatic Test Mode adapter (`default_adapter(test_mode=True)`). An operator who supplies `RZP_TEST_KEY_ID` / `RZP_TEST_KEY_SECRET` can use it to create a Razorpay Test Mode payment link. That link is an external object/side effect; it does not move money. The published demo does not supply credentials, run this capability, or create a payment link; it uses the deterministic mock executor instead.
 
 ## Limitations
 
