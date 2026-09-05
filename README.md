@@ -1,10 +1,34 @@
 # Ledger Daemon
 
-**100.0% of already-paid orders that a naive dunning agent would have chased were blocked — with a 4.0% false-hold rate on genuinely unpaid orders, and ₹0 wrongly chased.** (seed 42, n = 500, offline, < 5 s end to end.)
+**100.0% of already-paid orders that a schedule-driven dunning agent would have chased were blocked — with a 4.0% false-hold rate on genuinely unpaid orders, and ₹0 wrongly chased.**
+(synthetic data, seed 42, n = 500, offline, judge fingerprint `45583b83cbff6bd0`. Every number in this README is in [CLAIMS.md](CLAIMS.md) with the command that produced it.)
 
 **Thesis: you cannot autonomously chase money until you can prove it hasn't already arrived.**
 
-Ledger Daemon is a local-first, headless MCP server that performs deterministic three-way reconciliation (payment gateway × bank statement × merchant books) and uses the result as a **hard precondition** on any autonomous revenue-recovery action. Every mainstream dunning tool fires on invoice/gateway status; none makes cross-source reconciliation a precondition to chase. That gap — settlement lag, late authorisation, out-of-band NEFT/UPI — is where paying customers get chased, and "collecting a debt not owed" has been the single largest US debt-collection complaint category every year since 2013.
+Razorpay AI Buildathon 2026 · **Track 04, AI Finance Controller** — the only track this project is submitted under. Revenue recovery appears once, as a *Downstream Control Demonstration: Why Correct Reconciliation Matters*, and never as a second submission.
+
+Ledger Daemon is a local-first, headless MCP server that performs deterministic three-way reconciliation (payment gateway × bank statement × merchant books) and uses the result as a **hard precondition** on any autonomous revenue-recovery action. Chasing on invoice or gateway status alone is where settlement lag, late authorisation and out-of-band NEFT/UPI turn into a paying customer being dunned — and "collecting a debt not owed" has been the single largest US debt-collection complaint category every year since 2013.
+
+## One command an evaluator can run
+
+```bash
+python -m ledger_daemon judge --seed 42 --n 500 --out out/judge
+```
+
+Eight profiles — clean, realistic, stress, distribution-shift, adversarial, source-incomplete, high-collision, concurrent — each a full generate → validate → reconcile → gate → execute → prove → verify pass with a declared fault plan in front of it. It grades eleven injected attacks against oracles they declared beforehand, checks six hard invariants, exits nonzero if any fails, and writes `summary.json`, `cases.jsonl`, `attacks.json`, `latency.json`, `proof-manifest.json` and `claims.md` either way.
+
+Offline. No keys. No network. 26.9 s. Full results in [EVALUATION.md](EVALUATION.md).
+
+| document | what it settles |
+|---|---|
+| [CLAIMS.md](CLAIMS.md) | every published number, with dataset class, profile, seed, n, command and artifact |
+| [EVALUATION.md](EVALUATION.md) | the eight profiles, the eleven graded attacks, the cost table |
+| [METHODS.md](METHODS.md) | schemas, passes, the score, abstention, the proof and its verifier, metric definitions |
+| [LIMITATIONS.md](LIMITATIONS.md) | what this has *not* shown, worst first |
+| [SIMULATED_VS_REAL.md](SIMULATED_VS_REAL.md) | synthetic, schema-derived, semi-real, live — and which may produce a metric |
+| [SECURITY.md](SECURITY.md) | PII masking, the test-mode guard, the model boundary, audit integrity |
+| [WHAT_BROKE.md](WHAT_BROKE.md) | what broke building the controller, including what is still open |
+| [BROKEN.md](BROKEN.md) | what broke building the reconciliation engine |
 
 ## Run it
 
@@ -12,7 +36,7 @@ Ledger Daemon is a local-first, headless MCP server that performs deterministic 
 python -m ledger_daemon demo --seed 42 --n 500
 ```
 
-One command. Fully offline. Zero signup, zero cloud account, zero required dependencies beyond Python 3.11+ stdlib. Tests: `python -m pytest tests -q` (73 tests, ~7 s).
+Fully offline. Zero signup, zero cloud account, zero required dependencies beyond the Python 3.11+ standard library. Tests: `python -m pytest -q` — the suite prints its own count, so this page does not have one to go stale.
 
 ```bash
 python -m ledger_daemon ui          # the chase list: one screen, three columns, localhost

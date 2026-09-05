@@ -7,6 +7,7 @@ name = "ledger-daemon"
 version = "1.0.0"
 description = "Never chase money you already have: deterministic 3-way reconciliation as a hard precondition on autonomous revenue recovery."
 readme = "README.md"
+keywords = ["reconciliation", "finance", "audit", "proof-carrying"]
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = []  # stdlib only — offline by design
@@ -25,3 +26,5 @@ include = ["ledger_daemon*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Offline by contract: no test may require a key, a model or a socket.
+addopts = "-q"
