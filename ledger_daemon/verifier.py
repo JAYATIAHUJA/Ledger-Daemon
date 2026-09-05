@@ -13,7 +13,10 @@ from datetime import date
 from difflib import SequenceMatcher
 import re
 
-from .certificates import CERTIFICATE_VERSION, ProofCertificate
+from .certificates import (
+    CERTIFICATE_VERSION, IDENTITY_CERTIFICATE_VERSION, IdentityCertificate,
+    ProofCertificate,
+)
 from .narration import invoice_in_narration, parse
 from .source_contracts import sha256_hex
 
@@ -26,7 +29,7 @@ _VERDICTS = frozenset({
 _PASSES = frozenset({
     "pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id", "pass4_fuzzy",
     "pass4_rejected",
-    "gateway_status", "net_arithmetic", "exhausted", "none",
+    "gateway_status", "finance_event_dispute", "net_arithmetic", "exhausted", "none",
 })
 _ALLOWED_RULES = frozenset(
     {f"RECON.{name}" for name in _PASSES}
@@ -41,6 +44,7 @@ _RULE_VERDICTS = {
     }),
     "pass4_rejected": frozenset({"genuinely_unpaid"}),
     "gateway_status": frozenset({"chargeback_open", "failed_not_debited"}),
+    "finance_event_dispute": frozenset({"chargeback_open"}),
     "net_arithmetic": frozenset({"ambiguous"}),
     "exhausted": frozenset({"genuinely_unpaid"}),
     "none": frozenset({"ambiguous"}),
@@ -53,16 +57,175 @@ class VerificationResult:
     error_codes: tuple[str, ...]
 
 
+def verify_identity_certificate(certificate: IdentityCertificate,
+                                source_rows: list[dict[str, object]]) -> VerificationResult:
+    """Independently reconstruct a bounded accounting identity from sources."""
+    errors: list[str] = []
+
+    def reject(code: str) -> None:
+        if code not in errors:
+            errors.append(code)
+
+    try:
+        if (certificate.version != IDENTITY_CERTIFICATE_VERSION
+                or certificate.certificate_type != "finance_identity"):
+            reject("UNSUPPORTED_VERSION")
+        if sha256_hex(certificate._payload()) != certificate.proof_hash:
+            reject("PROOF_HASH_MISMATCH")
+        indexed: dict[str, dict[str, object]] = {}
+        for row in source_rows:
+            row_id = _row_id(row)
+            if row_id is None:
+                reject("SOURCE_SCHEMA_INVALID")
+            elif row_id in indexed:
+                reject("DUPLICATE_SOURCE_CONSUMPTION")
+            else:
+                indexed[row_id] = row
+        claimed = dict(certificate.source_hashes)
+        claimed_root = claimed.pop("BATCH_ROOT", None)
+        actual = {row_id: sha256_hex(row) for row_id, row in indexed.items()}
+        actual_root = sha256_hex({key: actual[key] for key in sorted(actual)})
+        if claimed_root != actual_root:
+            reject("BATCH_ROOT_MISMATCH")
+        for row_id, digest in claimed.items():
+            if row_id not in indexed:
+                reject("SOURCE_MISSING")
+            elif actual[row_id] != digest:
+                reject("SOURCE_HASH_MISMATCH")
+
+        # Re-validate load-bearing finance semantics locally. The independent
+        # verifier must not trust that an issuer constructed these rows through
+        # the domain dataclasses.
+        for row_id, row in indexed.items():
+            if row_id not in claimed:
+                continue
+            if "adjustment_id" in row:
+                kind, amount = row.get("kind"), row.get("amount_paise")
+                if (kind not in {"credit", "debit", "fee_reversal", "gst_variance"}
+                        or type(amount) is not int or amount == 0
+                        or (kind in {"credit", "fee_reversal"} and amount < 0)
+                        or (kind == "debit" and amount > 0)):
+                    reject("IDENTITY_SOURCE_INVALID")
+            if "entry_id" in row:
+                if (row.get("ledger_event_type") not in {
+                        "tds_withheld", "fee_reversal", "gst_variance",
+                        "settlement_adjustment"}
+                        or row.get("direction") not in {"credit", "debit"}
+                        or type(row.get("amount_paise")) is not int
+                        or row.get("amount_paise") <= 0):
+                    reject("IDENTITY_SOURCE_INVALID")
+
+        for term in certificate.amount_terms:
+            if type(term.amount_paise) is not int:
+                reject("NON_INTEGER_MONEY")
+                continue
+            row = indexed.get(term.source_row_id)
+            if row is None or term.source_row_id not in claimed:
+                reject("AMOUNT_TERM_SOURCE_MISSING")
+                continue
+            source_amount = row.get(term.source_field)
+            if type(source_amount) is not int or abs(term.amount_paise) != abs(source_amount):
+                reject("AMOUNT_TERM_SOURCE_MISMATCH")
+
+        expected: list[tuple[str, int, str, str]] = []
+        expected_lhs = None
+        if certificate.rule_id == "IDENTITY_SETTLEMENT_NET_V1":
+            settlement = indexed.get(certificate.subject_id)
+            if (settlement is None or "settled_at" not in settlement
+                    or settlement.get("status") != "processed"):
+                reject("IDENTITY_SOURCE_INVALID")
+            else:
+                expected_lhs = settlement.get("amount_paise")
+            captures = [row for row_id, row in indexed.items()
+                        if row_id in claimed and "payment_id" in row
+                        and row.get("status") == "captured"
+                        and row.get("settlement_id") == certificate.subject_id]
+            capture_ids = {row.get("payment_id") for row in captures}
+            refunds = [row for row_id, row in indexed.items()
+                       if row_id in claimed and "refund_id" in row
+                       and row.get("status") == "processed"
+                       and row.get("payment_id") in capture_ids]
+            adjustments = [row for row_id, row in indexed.items()
+                           if row_id in claimed and "adjustment_id" in row
+                           and row.get("settlement_id") == certificate.subject_id]
+            if not captures:
+                reject("IDENTITY_SOURCE_INVALID")
+            for row in captures:
+                expected.extend((
+                    ("gateway_capture", row.get("amount_paise"), row.get("payment_id"), "amount_paise"),
+                    ("gateway_fee", -row.get("fee_paise"), row.get("payment_id"), "fee_paise"),
+                    ("gateway_gst", -row.get("tax_paise"), row.get("payment_id"), "tax_paise"),
+                ))
+            expected.extend(("refund", -row.get("amount_paise"), row.get("refund_id"), "amount_paise")
+                            for row in refunds)
+            expected.extend(("adjustment", row.get("amount_paise"), row.get("adjustment_id"), "amount_paise")
+                            for row in adjustments)
+        elif certificate.rule_id == "IDENTITY_INVOICE_COVERAGE_V1":
+            order = indexed.get(certificate.subject_id)
+            if order is None or "invoice_no" not in order:
+                reject("IDENTITY_SOURCE_INVALID")
+            else:
+                expected_lhs = order.get("amount_paise")
+            payments = [row for row_id, row in indexed.items()
+                        if row_id in claimed and "payment_id" in row
+                        and row.get("order_id") == certificate.subject_id
+                        and row.get("status") == "captured"]
+            payment_ids = {row.get("payment_id") for row in payments}
+            refunds = [row for row_id, row in indexed.items()
+                       if row_id in claimed and "refund_id" in row
+                       and row.get("order_id") == certificate.subject_id
+                       and row.get("payment_id") in payment_ids
+                       and row.get("status") == "processed"]
+            if not payments:
+                reject("IDENTITY_SOURCE_INVALID")
+            expected.extend(("payment", row.get("amount_paise"), row.get("payment_id"), "amount_paise")
+                            for row in payments)
+            expected.extend(("refund", -row.get("amount_paise"), row.get("refund_id"), "amount_paise")
+                            for row in refunds)
+            tds_entries = [row for row_id, row in indexed.items()
+                           if row_id in claimed and "entry_id" in row
+                           and row.get("ledger_event_type") == "tds_withheld"
+                           and row.get("source_ref") == certificate.subject_id
+                           and row.get("direction") == "credit"]
+            expected.extend(("tds_withheld", row.get("amount_paise"), row.get("entry_id"), "amount_paise")
+                            for row in tds_entries)
+        else:
+            reject("IDENTITY_RULE_NOT_ALLOWED")
+
+        actual_terms = Counter(
+            (term.name, term.amount_paise, term.source_row_id, term.source_field)
+            for term in certificate.amount_terms
+        )
+        if Counter(expected) != actual_terms:
+            reject("IDENTITY_TERM_SCHEMA_INVALID")
+        if (type(expected_lhs) is not int or certificate.lhs_paise != expected_lhs
+                or certificate.rhs_paise != sum(term.amount_paise for term in certificate.amount_terms)
+                or certificate.lhs_paise != certificate.rhs_paise):
+            reject("IDENTITY_AMOUNT_MISMATCH")
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return VerificationResult(False, ("CERTIFICATE_SCHEMA_INVALID",))
+    return VerificationResult(not errors, tuple(errors))
+
+
 def _row_id(row: dict[str, object]) -> str | None:
+    for name in ("refund_id", "dispute_id", "adjustment_id", "entry_id"):
+        if name in row:
+            return row[name] if isinstance(row[name], str) else None
     identifiers = [row.get(name) for name in ("order_id", "payment_id", "txn_id") if name in row]
     # A capture has both payment_id and order_id; its own primary key is payment_id.
     if "payment_id" in row:
         return row["payment_id"] if isinstance(row["payment_id"], str) else None
     if "txn_id" in row:
         return row["txn_id"] if isinstance(row["txn_id"], str) else None
+    if "settlement_id" in row:
+        return row["settlement_id"] if isinstance(row["settlement_id"], str) else None
     if len(identifiers) == 1 and isinstance(identifiers[0], str):
         return identifiers[0]
     return None
+
+
+def _is_capture_row(row: dict[str, object]) -> bool:
+    return "payment_id" in row and "fee_paise" in row and "tax_paise" in row
 
 
 def _plausible_bank_owner(order: dict[str, object], bank_row: dict[str, object]) -> bool:
@@ -215,11 +378,11 @@ def _verify_certificate(
     if certificate.verdict not in _RULE_VERDICTS.get(recon_rule, frozenset()):
         reject("RULE_VERDICT_MISMATCH")
     claimed_rows = [indexed[row_id] for row_id in claimed_hashes if row_id in indexed]
-    claimed_captures = [row for row in claimed_rows if "payment_id" in row]
+    claimed_captures = [row for row in claimed_rows if _is_capture_row(row)]
     claimed_credits = [row for row in claimed_rows
                        if "txn_id" in row and row.get("credit_debit") == "credit"]
     full_captures = [row for row in indexed.values()
-                     if "payment_id" in row and row.get("order_id") == certificate.order_id]
+                     if _is_capture_row(row) and row.get("order_id") == certificate.order_id]
 
     expected_terms: list[tuple[str, int, str, str]] = []
     if type(invoice) is int:
@@ -374,6 +537,18 @@ def _verify_certificate(
         required = "chargeback_open" if certificate.verdict == "chargeback_open" else "failed"
         if required not in related_statuses:
             reject("EVIDENCE_STATUS_MISMATCH")
+    elif recon_rule == "finance_event_dispute":
+        disputes = [row for row in claimed_rows if "dispute_id" in row]
+        if len(disputes) != 1:
+            reject("EVIDENCE_SHAPE_MISMATCH")
+        else:
+            dispute = disputes[0]
+            amount = dispute.get("amount_paise")
+            if (dispute.get("order_id") != certificate.order_id
+                    or dispute.get("status") != "open"
+                    or type(amount) is not int or amount <= 0
+                    or type(invoice) is not int or amount > invoice):
+                reject("EVIDENCE_STATUS_MISMATCH")
     elif recon_rule == "exhausted":
         if full_captures:
             reject("NEGATIVE_EVIDENCE_CONTRADICTED")

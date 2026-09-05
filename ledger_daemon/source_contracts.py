@@ -15,6 +15,7 @@ class SourceKind(str, Enum):
     ORDER = "order"
     CAPTURE = "capture"
     BANK_TXN = "bank_txn"
+    FINANCE_EVENT = "finance_event"
 
 
 class SourceValidationError(ValueError):
@@ -43,7 +44,7 @@ class IngestionSummary:
 
 
 class QuarantineWriter(Protocol):
-    def append(self, source: str, row: dict, error_code: str, detail: str) -> str: ...
+    def append(self, source: str, row: object, error_code: str, detail: str) -> str: ...
 
 
 _MONEY_FIELDS = {
@@ -128,7 +129,40 @@ def mask_pii(row: dict[str, object]) -> dict[str, object]:
     return {field: _mask_value(value, field) for field, value in row.items()}
 
 
-def validate_row(source: SourceKind, row: dict[str, object]) -> SourceEnvelope:
+def validate_row(source: SourceKind, row: object) -> SourceEnvelope:
+    if source is SourceKind.FINANCE_EVENT:
+        from .finance_events import (
+            Adjustment, Dispute, FinanceEventError, LedgerEntry, Refund,
+            Settlement, decode_finance_event,
+        )
+        from .money import FloatMoneyError
+
+        if not isinstance(row, dict):
+            raise SourceValidationError("INVALID_SCHEMA", "finance event must be an object")
+        try:
+            event = decode_finance_event(row)
+        except FinanceEventError as exc:
+            raise SourceValidationError(exc.code, str(exc)) from exc
+        except FloatMoneyError as exc:
+            raise SourceValidationError("FLOAT_MONEY", str(exc)) from exc
+        id_fields = {
+            Refund: "refund_id", Dispute: "dispute_id", Adjustment: "adjustment_id",
+            Settlement: "settlement_id", LedgerEntry: "entry_id",
+        }
+        row_id = getattr(event, id_fields[type(event)])
+        normalized = mask_pii(row)
+        return SourceEnvelope(
+            source=source,
+            source_row_id=row_id,
+            schema_version="1",
+            raw_hash=sha256_hex(row),
+            normalized_hash=sha256_hex(normalized),
+            received_at=datetime.now(timezone.utc).isoformat(),
+            normalized=normalized,
+        )
+
+    if not isinstance(row, dict):
+        raise SourceValidationError("INVALID_SCHEMA", f"{source.value} row must be an object")
     missing = _REQUIRED_FIELDS[source] - row.keys()
     id_field = _ID_FIELDS[source]
     if id_field in missing or not isinstance(row.get(id_field), str) or not row.get(id_field, "").strip():
@@ -201,7 +235,7 @@ def validate_row(source: SourceKind, row: dict[str, object]) -> SourceEnvelope:
     )
 
 
-def validate_rows(source: SourceKind, rows: list[dict],
+def validate_rows(source: SourceKind, rows: list[object],
                   quarantine_store: QuarantineWriter) -> tuple[list[dict], IngestionSummary]:
     accepted: list[dict] = []
     source_hashes: list[str] = []

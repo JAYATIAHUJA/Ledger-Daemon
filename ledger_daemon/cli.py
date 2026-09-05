@@ -11,7 +11,9 @@ import sys
 import time
 
 from . import agent, policy
-from .datagen import generate, load_batch
+from .datagen import (
+    generate, load_batch, load_finance_events, load_finance_identity_sources,
+)
 from .evaluate import EvalReport, evaluate, render_exceptions, render_report, run_ledger_daemon
 from .executor import Executor, default_adapter
 from .models import Verdict
@@ -63,25 +65,29 @@ def cmd_demo(args) -> int:
     print(f"[1/6] generating calibration batch (seed={cal_seed}, n={args.n}, profile={profile}) ...")
     generate(cal_seed, args.n, p["cal_batch"], profile)
     cal = load_batch(p["cal_batch"])
+    cal_events = load_finance_events(p["cal_batch"])
     q_hat, fs_model, cal_probs = calibrate(cal[0], cal[1], cal[2], cal[3])
     print(f"      conformal q_hat = {q_hat:.4f} from {len(cal_probs)} labelled true matches (alpha=0.01)")
 
     print(f"[2/6] generating evaluation batch (seed={args.seed}, n={args.n}) ...")
     generate(args.seed, args.n, p["eval_batch"], profile)
     orders, captures, bank, truth = load_batch(p["eval_batch"])
+    finance_events = load_finance_events(p["eval_batch"])
 
     print("[3/6] reconciling (deterministic, zero LLM) ...")
-    result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model)
+    result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model,
+                       finance_events=finance_events)
     from .certificates import (
         batch_root, calibration_identity, recon_config_hash, source_hash_map,
         source_rows, write_proof_bundle,
     )
-    cal_rows = source_rows(cal[0], cal[1], cal[2])
+    cal_rows = source_rows(cal[0], cal[1], cal[2], finance_events=cal_events)
     calibration_id = calibration_identity(q_hat, batch_root(source_hash_map(cal_rows)))
     proof_manifest = write_proof_bundle(
         p["proofs"], orders, captures, bank, result.verdicts,
         config_hash=recon_config_hash(FULL),
         calibration_id=calibration_id,
+        finance_events=finance_events,
     )
     print(f"      {proof_manifest['certificate_count']} tamper-evident proofs -> {p['proofs']}")
 
@@ -459,7 +465,8 @@ def cmd_generate(args) -> int:
 
 def cmd_reconcile(args) -> int:
     orders, captures, bank, truth = load_batch(args.batch)
-    result = reconcile(orders, captures, bank)
+    result = reconcile(orders, captures, bank,
+                       finance_events=load_finance_events(args.batch))
     counts: dict[str, int] = {}
     for v in result.verdicts.values():
         counts[v.verdict.value] = counts.get(v.verdict.value, 0) + 1
@@ -474,7 +481,8 @@ def cmd_reconcile(args) -> int:
 
 def cmd_explain(args) -> int:
     orders, captures, bank, truth = load_batch(args.batch)
-    result = reconcile(orders, captures, bank)
+    result = reconcile(orders, captures, bank,
+                       finance_events=load_finance_events(args.batch))
     v = result.verdicts.get(args.order_id)
     if v is None:
         print(f"unknown order {args.order_id}", file=sys.stderr)
@@ -539,13 +547,34 @@ def cmd_audit(args) -> int:
 
 def cmd_verify_proof(args) -> int:
     """Verify a certificate from source facts without invoking reconciliation."""
-    from .certificates import ProofCertificate, source_rows
-    from .verifier import verify_certificate
+    from .certificates import IdentityCertificate, ProofCertificate, source_hash_map, source_rows
+    from .verifier import verify_certificate, verify_identity_certificate
 
     try:
         with open(args.certificate, encoding="utf-8") as fh:
-            certificate = ProofCertificate.from_json(fh.read())
+            encoded = fh.read()
+        decoded = json.loads(encoded)
+        if decoded.get("certificate_type") == "finance_identity":
+            certificate = IdentityCertificate.from_json(encoded)
+            checked = verify_identity_certificate(
+                certificate,
+                load_finance_identity_sources(args.sources, certificate.subject_id),
+            )
+            errors = list(checked.error_codes)
+            print(json.dumps({
+                "status": "VALID" if not errors else "INVALID",
+                "subject_id": certificate.subject_id,
+                "proof_hash": certificate.proof_hash,
+                "errors": errors,
+            }, sort_keys=True))
+            return 0 if not errors else 1
+        certificate = ProofCertificate.from_json(encoded)
         orders, captures, bank, _truth = load_batch(args.sources)
+        finance_events = load_finance_events(args.sources)
+        event_rows = source_rows([], [], [], finance_events=finance_events)
+        event_ids = set(source_hash_map(event_rows))
+        claimed_ids = set(dict(certificate.source_hashes))
+        proof_events = finance_events if event_ids & claimed_ids else []
         manifest_path = os.path.join(os.path.dirname(args.certificate), "proof-manifest.json")
         expected_config = args.config_hash or None
         expected_calibration = args.calibration_id or None
@@ -560,7 +589,7 @@ def cmd_verify_proof(args) -> int:
                 manifest_error = "MANIFEST_PROOF_MISMATCH"
         checked = verify_certificate(
             certificate,
-            source_rows(orders, captures, bank),
+            source_rows(orders, captures, bank, finance_events=proof_events),
             expected_config_hash=expected_config,
             expected_calibration_id=expected_calibration,
         )

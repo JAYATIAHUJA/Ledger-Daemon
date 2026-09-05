@@ -26,7 +26,7 @@ class QuarantineStore:
                 if line.strip()
             }
 
-    def append(self, source: str, row: dict, error_code: str, detail: str) -> str:
+    def append(self, source: str, row: object, error_code: str, detail: str) -> str:
         raw_hash = sha256_hex(row)
         quarantine_id = sha256_hex({
             "source": source,
@@ -40,7 +40,11 @@ class QuarantineStore:
             "error_code": error_code,
             "detail": detail,
             "received_at": datetime.now(timezone.utc).isoformat(),
-            "row": mask_pii(row),
+            # Malformed scalar/list payloads may contain PII but have no schema
+            # whose fields can be masked safely. Persist only their type; the
+            # raw hash still supports deduplication without echoing content.
+            "row": mask_pii(row) if isinstance(row, dict)
+                   else {"malformed_type": type(row).__name__},
         }
         with self._lock:
             if quarantine_id in self._seen:

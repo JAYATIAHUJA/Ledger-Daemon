@@ -35,6 +35,7 @@ import urllib.parse
 import urllib.request
 
 from .quarantine import QuarantineStore
+from .finance_events import FinanceEvent, decode_finance_event
 from .source_contracts import (
     SourceKind, SourceValidationError, validate_row, validate_rows,
     write_source_manifest,
@@ -46,6 +47,17 @@ PAGE = 100
 
 class IngestError(RuntimeError):
     pass
+
+
+def decode_finance_events(rows: list[object],
+                          quarantine: QuarantineStore) -> list[FinanceEvent]:
+    """Decode a mixed finance-event feed, quarantining every invalid row.
+
+    A row is never silently skipped: unsupported event types, malformed
+    schemas, and invalid money all become durable quarantine records.
+    """
+    valid_rows, _summary = validate_rows(SourceKind.FINANCE_EVENT, rows, quarantine)
+    return [decode_finance_event(row) for row in valid_rows]
 
 
 def _credentials() -> tuple[str, str]:
@@ -156,7 +168,8 @@ def bank_row(s: dict) -> dict | None:
 
 
 def write_batch(out_dir: str, orders: list[dict], captures: list[dict],
-                bank: list[dict]) -> dict[str, str]:
+                bank: list[dict], *,
+                finance_events: list[dict[str, object]] | None = None) -> dict[str, str]:
     os.makedirs(out_dir, exist_ok=True)
     quarantine = QuarantineStore(os.path.join(out_dir, "quarantine.jsonl"))
     spec = [
@@ -181,6 +194,15 @@ def write_batch(out_dir: str, orders: list[dict], captures: list[dict],
             w.writerows(accepted)
         paths[name] = path
         summaries[source] = summary
+    event_rows, event_summary = validate_rows(
+        SourceKind.FINANCE_EVENT, list(finance_events or []), quarantine
+    )
+    event_path = os.path.join(out_dir, "finance_events.jsonl")
+    with open(event_path, "w", encoding="utf-8") as fh:
+        for row in event_rows:
+            fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+    paths["finance_events.jsonl"] = event_path
+    summaries[SourceKind.FINANCE_EVENT] = event_summary
     write_source_manifest(out_dir, summaries)
     return paths
 

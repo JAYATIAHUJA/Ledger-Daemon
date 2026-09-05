@@ -16,8 +16,12 @@ from __future__ import annotations
 import csv
 import os
 import random
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
+from .finance_events import (
+    Adjustment, Dispute, FinanceEvent, LedgerEntry, Refund, Settlement,
+    encode_finance_event,
+)
 from .models import BankTxn, GatewayCapture, Order, Verdict
 from .money import add, pct_bp, sub
 
@@ -35,6 +39,109 @@ _SUFFIX = ["PVT LTD", "LLP", "AND SONS", "AND CO", ""]
 
 _BANKS = ["AXIS", "HDFC", "ICIC", "SBIN", "KKBK", "UTIB", "YESB", "IDFB"]
 _VPA_HOSTS = ["okhdfc", "oksbi", "okaxis", "ybl", "paytm", "ibl"]
+
+FINANCE_PROFILE_NAMES = (
+    "full_refund", "partial_refund", "open_dispute", "closed_dispute",
+    "positive_adjustment", "negative_adjustment", "fee_reversal",
+    "gst_variance", "cross_period_settlement", "split_capture_payout",
+    "tds", "missing_source",
+)
+
+
+@dataclass(frozen=True)
+class FinanceScenario:
+    name: str
+    order: Order
+    captures: tuple[GatewayCapture, ...]
+    refunds: tuple[Refund, ...] = ()
+    disputes: tuple[Dispute, ...] = ()
+    adjustments: tuple[Adjustment, ...] = ()
+    ledger_entries: tuple[LedgerEntry, ...] = ()
+    settlement: Settlement | None = None
+    tds_paise: int = 0
+    expected_identity_valid: bool = True
+
+
+def finance_scenarios(seed: int) -> dict[str, FinanceScenario]:
+    """Return a deterministic, labelled finance-identity edge-case matrix."""
+    rng = random.Random(seed)
+
+    def base(name: str, *, amount: int = 10_000, order_no: int | None = None):
+        number = rng.randrange(100_000, 999_999) if order_no is None else order_no
+        order_id = f"ORD-FIN-{number}"
+        order = Order(order_id, f"INV-FIN-{number}", f"CUST-FIN-{number}",
+                      "FINANCE FIXTURE LTD", amount, "2026-08-10", "paid", "gateway")
+        capture = GatewayCapture(f"pay-{number}", order_id, amount, 200, 36,
+                                 "captured", "card", "2026-08-10", f"setl-{number}",
+                                 f"UTR{number}")
+        return number, order, capture
+
+    out: dict[str, FinanceScenario] = {}
+    for name in FINANCE_PROFILE_NAMES:
+        number, order, capture = base(name)
+        sid, pid = capture.settlement_id, capture.payment_id
+        settlement_amount = 9_764
+        refunds: tuple[Refund, ...] = ()
+        disputes: tuple[Dispute, ...] = ()
+        adjustments: tuple[Adjustment, ...] = ()
+        ledger_entries: tuple[LedgerEntry, ...] = ()
+        captures: tuple[GatewayCapture, ...] = (capture,)
+        settled_at = "2026-08-12"
+        tds = 0
+        valid = True
+
+        if name == "full_refund":
+            refunds = (Refund(f"rfnd-{number}", pid, order.order_id, 10_000,
+                              "processed", "2026-08-11"),)
+            adjustments = (Adjustment(f"adj-{number}", sid, 236, "fee_reversal",
+                                      "2026-08-11"),)
+            settlement_amount = 0
+        elif name == "partial_refund":
+            refunds = (Refund(f"rfnd-{number}", pid, order.order_id, 1_000,
+                              "processed", "2026-08-11"),)
+            settlement_amount = 8_764
+        elif name in {"open_dispute", "closed_dispute"}:
+            disputes = (Dispute(f"disp-{number}", pid, order.order_id, 10_000,
+                                "open" if name == "open_dispute" else "closed",
+                                "2026-08-11"),)
+        elif name == "positive_adjustment":
+            adjustments = (Adjustment(f"adj-{number}", sid, 500, "credit", "2026-08-11"),)
+            settlement_amount = 10_264
+        elif name == "negative_adjustment":
+            adjustments = (Adjustment(f"adj-{number}", sid, -500, "debit", "2026-08-11"),)
+            settlement_amount = 9_264
+        elif name == "fee_reversal":
+            adjustments = (Adjustment(f"adj-{number}", sid, 200, "fee_reversal", "2026-08-11"),)
+            settlement_amount = 9_964
+        elif name == "gst_variance":
+            adjustments = (Adjustment(f"adj-{number}", sid, -36, "gst_variance", "2026-08-11"),)
+            settlement_amount = 9_728
+        elif name == "cross_period_settlement":
+            settled_at = "2026-09-02"
+        elif name == "split_capture_payout":
+            other = GatewayCapture(f"pay-{number}-2", f"ORD-FIN-{number}-2", 20_000,
+                                   400, 72, "captured", "upi", "2026-08-10", sid,
+                                   capture.utr)
+            captures = (capture, other)
+            settlement_amount = 29_292
+        elif name == "tds":
+            capture = GatewayCapture(pid, order.order_id, 9_000, 0, 0, "captured",
+                                     "bank_transfer", "2026-08-10", sid, capture.utr)
+            captures = (capture,)
+            settlement_amount = 9_000
+            tds = 1_000
+            ledger_entries = (LedgerEntry(
+                f"tds-{number}", "tds_withheld", order.order_id, tds,
+                "credit", "2026-08-10",
+            ),)
+        elif name == "missing_source":
+            captures = ()
+            valid = False
+
+        settlement = Settlement(sid, settlement_amount, settled_at, capture.utr, "processed")
+        out[name] = FinanceScenario(name, order, captures, refunds, disputes,
+                                    adjustments, ledger_entries, settlement, tds, valid)
+    return out
 
 
 def _day(d: int) -> str:
@@ -403,11 +510,52 @@ def generate(seed: int, n: int, out_dir: str, profile: str = "clean") -> dict[st
 
     g = _Gen(seed, n, profile)
     g.build()
+    events: list[FinanceEvent] = []
+    captured_by_order = {
+        capture.order_id: capture for capture in g.captures if capture.status == "captured"
+    }
+    for capture in g.captures:
+        if capture.status == "refund" and capture.order_id in captured_by_order:
+            original = captured_by_order[capture.order_id]
+            events.append(Refund(
+                f"rfnd-event-{capture.payment_id}", original.payment_id, capture.order_id,
+                -capture.amount_paise, "processed", capture.captured_at,
+            ))
+        elif capture.status == "chargeback_open":
+            events.append(Dispute(
+                f"disp-event-{capture.payment_id}", capture.payment_id, capture.order_id,
+                capture.amount_paise, "open", capture.captured_at,
+            ))
+    groups: dict[str, list[GatewayCapture]] = {}
+    for capture in g.captures:
+        if capture.settlement_id:
+            groups.setdefault(capture.settlement_id, []).append(capture)
+    for settlement_id, group in sorted(groups.items()):
+        expected = sum(c.amount_paise - c.fee_paise - c.tax_paise for c in group)
+        bank_row = next(
+            (row for row in g.bank if settlement_id in row.narration and row.amount_paise == expected),
+            None,
+        )
+        if bank_row is not None:
+            events.append(Settlement(
+                settlement_id, bank_row.amount_paise, bank_row.value_date,
+                bank_row.utr, "processed",
+            ))
+
+    scenarios = finance_scenarios(seed)
+    for scenario in scenarios.values():
+        events.extend(scenario.refunds)
+        events.extend(scenario.disputes)
+        events.extend(scenario.adjustments)
+        events.extend(scenario.ledger_entries)
+        if scenario.settlement is not None:
+            events.append(scenario.settlement)
     paths = write_batch(
         out_dir,
         [asdict(o) for o in g.orders],
         [asdict(c) for c in g.captures],
         [asdict(b) for b in g.bank],
+        finance_events=[encode_finance_event(event) for event in events],
     )
     truth_path = os.path.join(out_dir, "ground_truth.csv")
     with open(truth_path, "w", newline="", encoding="utf-8") as fh:
@@ -419,7 +567,112 @@ def generate(seed: int, n: int, out_dir: str, profile: str = "clean") -> dict[st
         writer.writeheader()
         writer.writerows(g.truth)
     paths["ground_truth.csv"] = truth_path
+    finance_truth_path = os.path.join(out_dir, "finance_truth.json")
+    with open(finance_truth_path, "w", encoding="utf-8") as fh:
+        json_body = {
+            "dataset": {"kind": "synthetic", "profile": profile, "seed": seed, "n": n},
+            "profiles": {
+                name: {"expected_identity_valid": scenario.expected_identity_valid}
+                for name, scenario in sorted(scenarios.items())
+            },
+            "schema_version": "1",
+        }
+        import json
+        json.dump(json_body, fh, ensure_ascii=False, sort_keys=True, indent=2)
+        fh.write("\n")
+    paths["finance_truth.json"] = finance_truth_path
+
+    from .identities import (
+        build_identity_certificate, verify_invoice_identity,
+        verify_settlement_identity,
+    )
+    identity_source_path = os.path.join(out_dir, "finance_identity_sources.jsonl")
+    proof_manifest: dict[str, dict[str, str]] = {}
+    with open(identity_source_path, "w", encoding="utf-8") as source_fh:
+        for name, scenario in sorted(scenarios.items()):
+            if not scenario.expected_identity_valid:
+                continue
+            event_rows = [
+                encode_finance_event(event)
+                for event in (*scenario.refunds, *scenario.disputes,
+                              *scenario.adjustments, *scenario.ledger_entries)
+            ]
+            if scenario.settlement is not None:
+                event_rows.append(encode_finance_event(scenario.settlement))
+            rows = ([asdict(scenario.order)]
+                    + [asdict(capture) for capture in scenario.captures]
+                    + event_rows)
+            if name == "tds":
+                source_ref = scenario.ledger_entries[0].entry_id
+                result = verify_invoice_identity(
+                    scenario.order, scenario.captures, scenario.refunds,
+                    scenario.tds_paise, tds_source_ref=source_ref,
+                )
+                subject_id = scenario.order.order_id
+            else:
+                result = verify_settlement_identity(
+                    scenario.settlement, scenario.captures, scenario.refunds,
+                    scenario.adjustments,
+                )
+                subject_id = scenario.settlement.settlement_id
+            certificate = build_identity_certificate(result, rows, subject_id=subject_id)
+            filename = f"finance-proof-{name}.json"
+            with open(os.path.join(out_dir, filename), "w", encoding="utf-8") as proof_fh:
+                proof_fh.write(certificate.to_json())
+            proof_manifest[name] = {"file": filename, "proof_hash": certificate.proof_hash}
+            for row in rows:
+                source_fh.write(json.dumps(
+                    {"subject_id": subject_id, "row": row}, ensure_ascii=False,
+                    sort_keys=True, separators=(",", ":"),
+                ) + "\n")
+    identity_manifest_path = os.path.join(out_dir, "finance-proof-manifest.json")
+    with open(identity_manifest_path, "w", encoding="utf-8") as fh:
+        json.dump({"certificates": proof_manifest, "schema_version": "1"}, fh,
+                  ensure_ascii=False, sort_keys=True, indent=2)
+        fh.write("\n")
+    paths["finance_identity_sources.jsonl"] = identity_source_path
+    paths["finance-proof-manifest.json"] = identity_manifest_path
     return paths
+
+
+def load_finance_events(dir_path: str) -> list[FinanceEvent]:
+    """Load and validate the optional heterogeneous finance-event source."""
+    from .ingest import decode_finance_events
+    from .quarantine import QuarantineStore
+
+    path = os.path.join(dir_path, "finance_events.jsonl")
+    if not os.path.exists(path):
+        return []
+    rows: list[object] = []
+    quarantine = QuarantineStore(os.path.join(dir_path, "quarantine.jsonl"))
+    import json
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                quarantine.append("finance_event", line, "MALFORMED_JSON", "invalid JSON line")
+    return decode_finance_events(rows, quarantine)
+
+
+def load_finance_identity_sources(dir_path: str, subject_id: str) -> list[dict[str, object]]:
+    """Load the exact source slice bound by one finance-identity proof."""
+    import json
+
+    path = os.path.join(dir_path, "finance_identity_sources.jsonl")
+    rows: list[dict[str, object]] = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            wrapper = json.loads(line)
+            if wrapper.get("subject_id") == subject_id and isinstance(wrapper.get("row"), dict):
+                row = wrapper["row"]
+                if "event_type" in row:
+                    from .source_contracts import SourceKind, validate_row
+                    validate_row(SourceKind.FINANCE_EVENT, row)
+                rows.append(row)
+    return rows
 
 
 def load_batch(dir_path: str) -> tuple[list[Order], list[GatewayCapture], list[BankTxn], dict[str, dict]]:

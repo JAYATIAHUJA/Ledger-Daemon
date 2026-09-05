@@ -76,6 +76,8 @@ CaseStore.open_case()     sha256(order|reason) PK -> idempotent; case_events app
 | `drift.py` | five integer signals; scores a live window against the calibration batch |
 | `authority.py` | the kill switch: hysteresis ladder, revoke fast, recover slow |
 | `cases.py` | exception FSM: idempotent cases, declared edges, optimistic concurrency |
+| `finance_events.py` | immutable refund/dispute/adjustment/settlement/ledger event schemas |
+| `identities.py` | exact signed-paise settlement and invoice accounting identities |
 | `mcp_server.py` | 8 MCP tools (FastMCP or stdio fallback) |
 | `cli.py` | demo / generate / reconcile / explain / audit / mcp |
 

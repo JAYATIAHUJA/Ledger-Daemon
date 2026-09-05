@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 from . import conformal as cf
 from .fs import FSModel, _day_delta, p_match
+from .finance_events import Dispute, FinanceEvent
 from .models import BankTxn, Evidence, GatewayCapture, Order, OrderVerdict, Verdict
 from .money import STATUTORY_TDS_RATES_BP, add, pct_bp, sub, tds_rate_bp
 from .narration import parse
@@ -147,7 +148,8 @@ def _assign_component(order_ids: list[str], edges: dict[str, list[tuple[str, flo
 
 def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[BankTxn],
               q_hat: float | None = None, fs_model: FSModel | None = None,
-              config: ReconConfig = FULL) -> ReconResult:
+              config: ReconConfig = FULL,
+              finance_events: list[FinanceEvent] | tuple[FinanceEvent, ...] = ()) -> ReconResult:
     t0 = time.perf_counter()
     q_source = "calibrated" if q_hat is not None else f"fallback ({cf.FALLBACK_Q_HAT})"
     if q_hat is None:
@@ -156,6 +158,11 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
     caps_by_order: dict[str, list[GatewayCapture]] = {}
     for c in captures:
         caps_by_order.setdefault(c.order_id, []).append(c)
+
+    open_disputes: dict[str, list[str]] = {}
+    for event in finance_events:
+        if isinstance(event, Dispute) and event.status == "open":
+            open_disputes.setdefault(event.order_id, []).append(event.dispute_id)
 
     credits = [b for b in bank if b.credit_debit == "credit"]
     coverage_end = max((b.value_date for b in bank), default="0000-00-00")
@@ -278,7 +285,8 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
     for o in orders:
         caps = caps_by_order.get(o.order_id, [])
         v = _resolve(o, caps, settlement_hit, assignment, edges, txn_by_id,
-                     utr_counts, q_hat, coverage_end, o.order_id in refund_net_zero, config)
+                     utr_counts, q_hat, coverage_end, o.order_id in refund_net_zero,
+                     config, open_disputes.get(o.order_id, []))
         verdicts[o.order_id] = v
 
     elapsed = time.perf_counter() - t0
@@ -292,10 +300,19 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
 def _resolve(o: Order, caps: list[GatewayCapture],
              settlement_hit: dict, assignment: dict, edges: dict, txn_by_id: dict,
              utr_counts: dict, q_hat: float, coverage_end: str,
-             is_refund_net_zero: bool, config: ReconConfig = FULL) -> OrderVerdict:
+             is_refund_net_zero: bool, config: ReconConfig = FULL,
+             open_dispute_refs: list[str] | None = None) -> OrderVerdict:
     def mk(verdict, ev, **kw):
         return OrderVerdict(order_id=o.order_id, verdict=verdict,
                             evidence_refs=ev.source_rows, evidence=ev, **kw)
+
+    # A typed open dispute trumps payment evidence: freeze and escalate.
+    if open_dispute_refs:
+        ev = Evidence("finance_event_dispute", sorted(open_dispute_refs),
+                      "open dispute in typed finance-event feed",
+                      automation_path="exact", risk_authorized=True)
+        return mk(Verdict.CHARGEBACK_OPEN, ev, money_received_paise=o.amount_paise,
+                  reason="disputed funds — freeze and escalate, never dun")
 
     # chargeback trumps everything: freeze, escalate
     cb = [c for c in caps if c.status == "chargeback_open"]

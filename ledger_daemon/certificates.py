@@ -50,6 +50,75 @@ class AmountTerm:
         )
 
 
+IDENTITY_CERTIFICATE_VERSION = "1"
+
+
+@dataclass(frozen=True)
+class IdentityCertificate:
+    """Tamper-evident signed-paise proof for one accounting identity."""
+
+    version: str
+    certificate_type: str
+    subject_id: str
+    rule_id: str
+    lhs_paise: int
+    rhs_paise: int
+    source_hashes: tuple[tuple[str, str], ...]
+    amount_terms: tuple[AmountTerm, ...]
+    proof_hash: str
+
+    @classmethod
+    def create(cls, *, subject_id: str, rule_id: str, lhs_paise: int,
+               rhs_paise: int, source_hashes: dict[str, str],
+               amount_terms: tuple[AmountTerm, ...]) -> "IdentityCertificate":
+        if type(lhs_paise) is not int or type(rhs_paise) is not int:
+            raise TypeError("identity money must be integer paise")
+        base = cls(
+            IDENTITY_CERTIFICATE_VERSION, "finance_identity", subject_id, rule_id,
+            lhs_paise, rhs_paise, tuple(sorted(source_hashes.items())),
+            amount_terms, "",
+        )
+        return replace(base, proof_hash=sha256_hex(base._payload()))
+
+    def _payload(self) -> dict[str, object]:
+        return {
+            "amount_terms": [term.to_dict() for term in self.amount_terms],
+            "certificate_type": self.certificate_type,
+            "lhs_paise": self.lhs_paise,
+            "rhs_paise": self.rhs_paise,
+            "rule_id": self.rule_id,
+            "source_hashes": dict(self.source_hashes),
+            "subject_id": self.subject_id,
+            "version": self.version,
+        }
+
+    def to_dict(self) -> dict[str, object]:
+        return {**self._payload(), "proof_hash": self.proof_hash}
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+
+    @classmethod
+    def from_json(cls, encoded: str) -> "IdentityCertificate":
+        value = json.loads(encoded)
+        expected = {
+            "amount_terms", "certificate_type", "lhs_paise", "proof_hash", "rhs_paise",
+            "rule_id", "source_hashes", "subject_id", "version",
+        }
+        if not isinstance(value, dict) or set(value) != expected:
+            raise ValueError("invalid identity-certificate schema")
+        if not isinstance(value["source_hashes"], dict) or not isinstance(value["amount_terms"], list):
+            raise ValueError("invalid identity-certificate collections")
+        return cls(
+            version=value["version"], certificate_type=value["certificate_type"],
+            subject_id=value["subject_id"], rule_id=value["rule_id"],
+            lhs_paise=value["lhs_paise"], rhs_paise=value["rhs_paise"],
+            source_hashes=tuple(sorted(value["source_hashes"].items())),
+            amount_terms=tuple(AmountTerm.from_dict(term) for term in value["amount_terms"]),
+            proof_hash=value["proof_hash"],
+        )
+
+
 @dataclass(frozen=True)
 class ProofCertificate:
     version: str
@@ -190,26 +259,43 @@ class ProofCertificate:
 
 
 def source_rows(orders: Iterable[object], captures: Iterable[object],
-                bank: Iterable[object]) -> list[dict[str, object]]:
+                bank: Iterable[object], *,
+                finance_events: Iterable[object] = ()) -> list[dict[str, object]]:
     """Return the canonical typed rows used by both proof writer and verifier."""
     rows: list[dict[str, object]] = []
+    finance_events = tuple(finance_events)
     for record in (*tuple(orders), *tuple(captures), *tuple(bank)):
         if not is_dataclass(record):
             raise TypeError("proof sources must be dataclass records")
         rows.append(asdict(record))
+    from .finance_events import encode_finance_event
+    for event in finance_events:
+        if not is_dataclass(event):
+            raise TypeError("proof finance sources must be dataclass records")
+        rows.append(encode_finance_event(event))
     return rows
 
 
 def _row_id(row: dict[str, object]) -> str:
-    if "payment_id" in row:
+    finance_ids = ("refund_id", "dispute_id", "adjustment_id", "entry_id")
+    finance_id = next((row[field] for field in finance_ids if field in row), None)
+    if finance_id is not None:
+        value = finance_id
+    elif "payment_id" in row:
         value = row["payment_id"]
     elif "txn_id" in row:
         value = row["txn_id"]
+    elif "settlement_id" in row:
+        value = row["settlement_id"]
     else:
         value = row.get("order_id")
     if not isinstance(value, str) or not value:
         raise ValueError("source row has no primary identifier")
     return value
+
+
+def _is_capture_row(row: dict[str, object]) -> bool:
+    return "payment_id" in row and "fee_paise" in row and "tax_paise" in row
 
 
 def source_hash_map(rows: Iterable[dict[str, object]]) -> dict[str, str]:
@@ -244,7 +330,7 @@ def _generated_at(rows: Iterable[dict[str, object]]) -> str:
     dates = [
         value
         for row in rows
-        for field in ("due_date", "captured_at", "value_date")
+        for field in ("due_date", "captured_at", "value_date", "created_at", "settled_at", "occurred_at")
         if isinstance((value := row.get(field)), str)
     ]
     watermark = max(dates, default=date(1970, 1, 1).isoformat())
@@ -277,7 +363,7 @@ def _amount_terms(order: object, verdict: object,
     if verdict.evidence.pass_used in {
         "pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id",
     }:
-        for row in sorted((row for row in evidence_rows if "payment_id" in row),
+        for row in sorted((row for row in evidence_rows if _is_capture_row(row)),
                           key=_row_id):
             capture_name = "gateway_refund" if row.get("status") == "refund" else "gateway_capture"
             terms.extend((
@@ -299,7 +385,7 @@ def _amount_terms(order: object, verdict: object,
                 AmountTerm("evidence_received", -verdict.money_received_paise),
             ))
         if verdict_name == "refunded_then_repaid":
-            for row in sorted((row for row in evidence_rows if "payment_id" in row),
+            for row in sorted((row for row in evidence_rows if _is_capture_row(row)),
                               key=_row_id):
                 terms.extend((
                     AmountTerm(
@@ -330,7 +416,7 @@ def _build_certificate(order: object, verdict: object, source_hashes: dict[str, 
     if verdict.verdict.value == "refunded_then_repaid":
         referenced.update(
             row_id for row_id, row in indexed.items()
-            if "payment_id" in row and row.get("order_id") == order.order_id
+            if _is_capture_row(row) and row.get("order_id") == order.order_id
         )
 
     # A settlement bank credit can aggregate several orders. Include the complete
@@ -390,11 +476,12 @@ def _safe_filename(order_id: str) -> str:
 
 def write_proof_bundle(out_dir: str, orders: list[object], captures: list[object],
                        bank: list[object], verdicts: dict[str, object], *,
-                       config_hash: str, calibration_id: str) -> dict[str, object]:
+                       config_hash: str, calibration_id: str,
+                       finance_events: Iterable[object] = ()) -> dict[str, object]:
     if (len(verdicts) != len(orders)
             or set(verdicts) != {order.order_id for order in orders}):
         raise ValueError("certificate count cannot differ from order count")
-    rows = source_rows(orders, captures, bank)
+    rows = source_rows(orders, captures, bank, finance_events=finance_events)
     hashes = source_hash_map(rows)
     indexed = {_row_id(row): row for row in rows}
     root_hash = batch_root(hashes)

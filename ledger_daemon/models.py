@@ -9,6 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+# Public domain-model compatibility: finance-event implementations live in
+# their focused module but remain importable from ``models`` for consumers that
+# treat this module as the aggregate domain boundary.
+from .finance_events import Adjustment, Dispute, LedgerEntry, Refund, Settlement
+
 
 class Verdict(str, Enum):
     SETTLED_CLEAN = "settled_clean"            # gw ok, bank ok, on time
