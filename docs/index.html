@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Ledger Daemon proves which invoices were truly paid before your collections chase anyone. Local-first, proof-carrying reconciliation for Indian B2B.">
+<title>Ledger Daemon</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500;1,9..144,600&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F3EB; --paper2:#F1EDE2; --card:#FFFEFA; --ink:#26221A; --dim:#6E6858;
+  --line:#E4DFD1; --line2:#D6D0BE;
+  --sage:#3F5C46; --sage-dk:#314837; --sagebg:#E7EDE4;
+  --sky:#DCE8F0; --sky2:#EAF1F5;
+  --gold:#B98F2F; --goldbg:#F4ECD8;
+  --red:#A8503F; --redbg:#F3E4DE;
+  color-scheme: light;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{background:var(--paper);color:var(--ink);
+  font:16px/1.65 "Figtree",-apple-system,"Segoe UI",sans-serif}
+::selection{background:#E8DFC4}
+a{color:var(--sage)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+.serif{font-family:"Fraunces",Georgia,serif}
+h1,h2{font-family:"Fraunces",Georgia,serif;font-weight:500;line-height:1.12;
+  letter-spacing:-.015em;text-wrap:balance}
+h1 em,h2 em{font-style:italic;font-weight:500}
+code,pre,.mono{font-family:"IBM Plex Mono",Consolas,monospace}
+p code,li code{background:#fff;border:1px solid var(--line);border-radius:5px;
+  padding:1px 7px;font-size:12.5px;white-space:nowrap;color:var(--ink)}
+section{padding:88px 0 8px;position:relative}
+.center{text-align:center}
+.lede{color:var(--dim);font-size:16.5px;max-width:56ch;margin:16px auto 0}
+.small{font-size:13.5px;color:var(--dim)}
+[data-lucide]{width:19px;height:19px;flex:none}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 15px "Figtree",sans-serif;
+  text-decoration:none;border-radius:999px;padding:12px 24px;cursor:pointer;
+  border:1.5px solid transparent;transition:background .15s,transform .1s}
+.btn.primary{background:var(--sage);color:#fff}
+.btn.primary:hover{background:#33503B}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line2)}
+.btn.ghost:hover{background:#fff}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible,.chip:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn [data-lucide]{width:17px;height:17px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:50;background:rgba(246,243,235,.9);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:26px;height:72px}
+.brand{font-family:"Fraunces",serif;font-weight:600;font-size:20px;color:var(--ink);
+  text-decoration:none;display:flex;align-items:center;gap:9px}
+.brand .sigil{width:26px;height:26px;border-radius:99px;background:var(--sage);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;
+  font:600 14px "Fraunces",serif}
+.navlinks{display:flex;gap:24px;font-size:14.5px;font-weight:500}
+.navlinks a{color:var(--dim);text-decoration:none}
+.navlinks a:hover{color:var(--ink)}
+nav .grow{flex:1}
+nav .btn{padding:9px 18px;font-size:14px}
+@media(max-width:820px){.navlinks{display:none}}
+
+/* painted scenery (original artwork: css/svg washes) */
+.scene{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:-1}
+.wash{position:absolute;border-radius:50%;filter:blur(60px);opacity:.55}
+.foliage{position:absolute;width:340px;opacity:.9}
+.foliage svg{width:100%;height:auto;display:block}
+
+/* hero */
+.hero{padding:76px 0 30px;position:relative}
+.badge{display:inline-flex;align-items:center;gap:8px;background:#fff;
+  border:1px solid var(--line);border-radius:999px;padding:6px 16px;
+  font-size:12.5px;font-weight:600;color:var(--dim)}
+.badge b{color:var(--sage)}
+.hero h1{font-size:clamp(40px,6vw,68px);margin-top:26px}
+.hero h1 .paren{font-weight:400;color:#B9B29D;font-style:normal;
+  padding:0 .12em;font-size:.92em}
+.heroCtas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:32px}
+
+/* browser mockup */
+.shot{background:var(--card);border:1px solid var(--line2);border-radius:16px;
+  box-shadow:0 30px 60px -30px rgba(52,48,36,.35), 0 8px 24px -12px rgba(52,48,36,.18);
+  overflow:hidden;margin:54px auto 0;max-width:960px;text-align:left}
+.shot .bar{display:flex;align-items:center;gap:7px;padding:11px 16px;
+  border-bottom:1px solid var(--line);background:#FAF8F1}
+.shot .dot{width:10px;height:10px;border-radius:99px;background:#E0DAC8}
+.shot .addr{flex:1;max-width:360px;margin:0 auto;background:#fff;border:1px solid var(--line);
+  border-radius:6px;font:11.5px "IBM Plex Mono",monospace;color:var(--dim);
+  padding:3px 12px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shotbody{padding:22px 24px;background:#FBFAF5}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:640px){.tiles{grid-template-columns:1fr}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile .k{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--dim);
+  text-transform:uppercase;display:flex;align-items:center;gap:7px}
+.tile .k [data-lucide]{width:14px;height:14px}
+.tile .v{font-family:"Fraunces",serif;font-weight:600;font-size:24px;margin-top:5px;
+  font-variant-numeric:tabular-nums}
+.tile.safe .v{color:var(--sage)} .tile.block .v{color:var(--red)} .tile.hold .v{color:var(--gold)}
+.rows{margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.row{display:flex;gap:12px;align-items:center;padding:11px 16px;font-size:13px;
+  border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row .who{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who span{display:block;font:400 11px "IBM Plex Mono",monospace;color:var(--dim)}
+.pill{font-size:11px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.pill.blocked{background:var(--redbg);color:var(--red)}
+.pill.proof{background:var(--sagebg);color:var(--sage)}
+.pill.review{background:var(--goldbg);color:var(--gold)}
+.row .amt{font:600 13px "IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.shotfoot{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+  border-top:1px solid var(--line);background:#FAF8F1;padding:14px 20px}
+.shotfoot .q{font-size:14px}
+.shotfoot .q b{font-family:"Fraunces",serif;font-weight:600}
+.shotfoot .acts{display:flex;gap:10px;flex-wrap:wrap}
+.shotfoot .btn{padding:9px 18px;font-size:13.5px}
+
+/* numbered features */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;margin-top:44px}
+@media(max-width:880px){.split{grid-template-columns:1fr;gap:30px}}
+.numlist{list-style:none;padding:0}
+.numlist li{display:flex;gap:18px;padding:20px 4px;border-top:1px solid var(--line)}
+.numlist li:last-child{border-bottom:1px solid var(--line)}
+.numlist .no{font:500 12px "IBM Plex Mono",monospace;color:var(--gold);padding-top:4px}
+.numlist b{display:block;font-size:16.5px;font-weight:700;margin-bottom:4px}
+.numlist p{font-size:14px;color:var(--dim)}
+.stack{display:grid;gap:14px}
+.mcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px;
+  box-shadow:0 12px 26px -18px rgba(52,48,36,.3);display:flex;gap:13px;align-items:flex-start}
+.mcard:nth-child(2){transform:translateX(20px)}
+.mcard:nth-child(3){transform:translateX(-12px)}
+@media(max-width:880px){.mcard:nth-child(2),.mcard:nth-child(3){transform:none}}
+.mcard .mic{width:36px;height:36px;border-radius:9px;background:var(--sagebg);color:var(--sage);
+  display:flex;align-items:center;justify-content:center;flex:none}
+.mcard.gold .mic{background:var(--goldbg);color:var(--gold)}
+.mcard.red .mic{background:var(--redbg);color:var(--red)}
+.mcard b{font-size:14.5px}
+.mcard p{font-size:12.5px;color:var(--dim);margin-top:2px}
+.mcard .st{margin-left:auto;font-size:11px;font-weight:700;white-space:nowrap;padding-top:3px}
+.mcard .st.g{color:var(--sage)} .mcard .st.y{color:var(--gold)}
+
+/* sky band */
+.band{background:linear-gradient(180deg,var(--sky2),var(--sky) 40%,var(--sky2));
+  border-top:1px solid #CEDEE8;border-bottom:1px solid #CEDEE8;
+  margin-top:90px;padding:86px 0 70px}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:44px}
+@media(max-width:880px){.cards3{grid-template-columns:1fr}}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;
+  box-shadow:0 14px 30px -22px rgba(52,64,72,.35)}
+.fcard h3{font-family:"Fraunces",serif;font-weight:600;font-size:18px;margin-bottom:6px}
+.fcard > p{font-size:13.5px;color:var(--dim)}
+.mini{margin-top:16px;background:#FBFAF5;border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;font-size:12px}
+.mini .ln{display:flex;align-items:center;gap:8px;padding:5px 0;color:var(--dim)}
+.mini .ln [data-lucide]{width:14px;height:14px;color:var(--sage)}
+.mini .ln.strike{text-decoration:line-through;opacity:.55}
+.mini .cert{font-family:"IBM Plex Mono",monospace;font-size:11px;line-height:1.8;color:var(--ink)}
+.mini .cert .g{color:var(--sage)}
+.mini .btns{display:flex;gap:8px;margin-top:8px}
+.mini .btns span{font-size:11px;font-weight:700;border-radius:7px;padding:6px 10px}
+.mini .btns .ok{background:var(--sage);color:#fff}
+.mini .btns .no{border:1px solid var(--line2);color:var(--ink)}
+
+/* ornament divider */
+.orn{display:flex;justify-content:center;padding:74px 0 0}
+.orn svg{width:56px;height:56px}
+
+/* trust two-col with stamp */
+.trust{display:grid;grid-template-columns:1fr auto 1fr;gap:40px;align-items:center;margin-top:48px}
+@media(max-width:920px){.trust{grid-template-columns:1fr}}
+.tcol h3{font-family:"Fraunces",serif;font-weight:600;font-size:21px;margin-bottom:8px}
+.tcol p{font-size:14.5px;color:var(--dim);max-width:38ch}
+.tcol .chk{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:13.5px;font-weight:600}
+.tcol .chk [data-lucide]{color:var(--sage);width:16px;height:16px}
+.stamp{background:#fff;padding:16px;border-radius:6px;
+  box-shadow:0 16px 34px -20px rgba(52,48,36,.4);
+  --notch:radial-gradient(circle, transparent 5px, #fff 5.5px);
+  border:10px solid transparent;position:relative}
+.stampin{border:1px solid var(--line2);background:var(--paper2);padding:26px 30px;text-align:center}
+.stampin .z{font-family:"Fraunces",serif;font-weight:600;font-size:44px;color:var(--sage)}
+.stampin .zz{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:4px}
+
+/* widget */
+.widget{background:var(--card);border:1px solid var(--line2);border-radius:16px;
+  box-shadow:0 22px 44px -28px rgba(52,48,36,.35);margin:44px auto 0;max-width:880px;
+  padding:26px 28px;text-align:left}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{font:500 12px "IBM Plex Mono",monospace;border:1px solid var(--line2);
+  border-radius:999px;background:var(--paper);padding:6px 13px;cursor:pointer;color:var(--ink)}
+.chip:hover{background:var(--sagebg);border-color:var(--sage)}
+.widget textarea{width:100%;font:14px/1.6 "IBM Plex Mono",monospace;color:var(--ink);
+  background:var(--paper);border:1px solid var(--line2);border-radius:10px;
+  padding:13px 15px;resize:vertical;min-height:58px}
+.widget textarea:focus{outline:2.5px solid var(--sage);outline-offset:1px}
+.hlbox{font:14.5px/2.1 "IBM Plex Mono",monospace;word-break:break-word;background:var(--paper);
+  border:1px solid var(--line);border-radius:10px;padding:13px 15px;margin-top:14px}
+mark{border-radius:4px;padding:2px 4px;border-bottom:2.5px solid;background:transparent;color:inherit}
+mark.utr,mark.upi_ref{background:#E3EAF3;border-color:#5A7FA8}
+mark.invoice{background:var(--sagebg);border-color:var(--sage)}
+mark.name{background:var(--goldbg);border-color:var(--gold)}
+mark.mode{background:#ECE6F2;border-color:#7D6A9E}
+mark.vpa{background:#F2E5EC;border-color:#A06A88}
+mark.settlement_id{background:#E1EEEC;border-color:#4E837E}
+.spanrows{margin-top:10px;font-size:13px}
+.spanrows .row2{display:flex;gap:12px;padding:7px 2px;border-bottom:1px solid var(--line);align-items:baseline}
+.spanrows .row2:last-child{border-bottom:none}
+.spanrows .kind{font:600 11px "IBM Plex Mono",monospace;letter-spacing:.05em;
+  text-transform:uppercase;width:110px;flex:none}
+.spanrows .val{font-family:"IBM Plex Mono",monospace}
+.spanrows .conf{margin-left:auto;color:var(--dim);font:12px "IBM Plex Mono",monospace}
+.wnote{font-size:13px;color:var(--dim);margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+
+/* tested-on */
+.tested{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:40px}
+@media(max-width:880px){.tested{grid-template-columns:1fr}}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.tcard .tic{width:38px;height:38px;border-radius:10px;background:var(--sagebg);color:var(--sage);
+  display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.tcard h3{font-size:16px;font-weight:700;margin-bottom:5px}
+.tcard p{font-size:13.5px;color:var(--dim)}
+.resultline{text-align:center;margin-top:34px;font-family:"Fraunces",serif;
+  font-size:clamp(18px,2.3vw,23px);font-weight:500}
+.resultline b{color:var(--sage);font-weight:600}
+
+/* steps / CLI */
+.steps{counter-reset:s;max-width:760px;margin:44px auto 0;display:grid;gap:18px}
+.stepc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.stepc .sh{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.stepc .sn{width:30px;height:30px;border-radius:99px;background:var(--sage);color:#fff;
+  display:flex;align-items:center;justify-content:center;font:600 14px "Fraunces",serif;flex:none}
+.stepc b{font-size:16px}
+.stepc .why{font-size:13.5px;color:var(--dim);margin-top:8px}
+.codebox{position:relative;background:#2A2A22;color:#EDEAD9;border-radius:10px;overflow:hidden}
+.codebox pre{padding:13px 15px;overflow-x:auto;font-size:13px;line-height:1.7}
+.codebox .cmt{color:#9A967F}
+.codebox .cbtn{position:absolute;top:8px;right:8px;font:600 11px "IBM Plex Mono",monospace;
+  background:var(--paper);color:var(--ink);border:1px solid var(--line2);
+  border-radius:6px;padding:5px 10px;cursor:pointer}
+.codebox .cbtn:hover{background:#fff}
+
+/* footer landscape + bar */
+.outro{position:relative;margin-top:110px;padding:100px 0 190px;text-align:center;overflow:hidden}
+.outro h2{font-size:clamp(30px,4.4vw,50px)}
+.outroCtas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px;position:relative;z-index:2}
+.land{position:absolute;left:0;right:0;bottom:-2px;height:220px;pointer-events:none}
+.land svg{width:100%;height:100%;display:block}
+.footbar{background:#2E4234;color:#CBD6C8;padding:34px 0 40px;font-size:13.5px}
+.footbar .in{display:flex;flex-wrap:wrap;gap:26px;justify-content:space-between}
+.footbar a{color:#E7EEE3;text-decoration:none}
+.footbar a:hover{text-decoration:underline}
+.footbar .brandf{font-family:"Fraunces",serif;font-weight:600;font-size:19px;color:#fff}
+.footbar .fine{margin-top:18px;font-size:12px;color:#9DB09A;max-width:70ch}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+
+<nav><div class="wrap">
+  <a class="brand" href="#top"><span class="sigil">₹</span>Ledger Daemon</a>
+  <div class="navlinks">
+    <a href="#product">Product</a><a href="#features">How it works</a>
+    <a href="#try">Try it</a><a href="#tested">What we tested</a><a href="#start">Get started</a>
+  </div>
+  <span class="grow"></span>
+  <a class="btn ghost" href="https://github.com/JAYATIAHUJA/razorpay-hack" target="_blank" rel="noopener"><i data-lucide="github"></i>GitHub</a>
+  <a class="btn primary" href="https://claude.ai/code/artifact/b96a0700-275c-4ed4-a355-a894858777de" target="_blank" rel="noopener">Open demo</a>
+</div></nav>
+
+<header class="hero center wrap" id="top">
+  <div class="scene" aria-hidden="true">
+    <div class="wash" style="width:520px;height:340px;left:-140px;top:-80px;background:#DCE8F0"></div>
+    <div class="wash" style="width:460px;height:300px;right:-120px;top:-40px;background:#EAE4D0"></div>
+  </div>
+  <span class="badge">Built for <b>Razorpay AI Buildathon 2026</b> · AI Finance Controller</span>
+  <h1><span class="paren">(</span>&nbsp;The ledger <em>proves itself</em>&nbsp;<span class="paren">)</span></h1>
+  <p class="lede">Ledger Daemon reads your gateway, your bank statement and your books,
+  works out which invoices were truly paid — and blocks your collections from ever
+  chasing a customer whose money already arrived.</p>
+  <div class="heroCtas">
+    <a class="btn primary" href="https://claude.ai/code/artifact/b96a0700-275c-4ed4-a355-a894858777de" target="_blank" rel="noopener">See it working<i data-lucide="arrow-right"></i></a>
+    <a class="btn ghost" href="#start"><i data-lucide="terminal"></i>Install the CLI</a>
+  </div>
+
+  <div class="shot">
+    <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="addr">127.0.0.1:7042 — today’s chase list</span></div>
+    <div class="shotbody">
+      <div class="tiles">
+        <div class="tile safe"><div class="k"><i data-lucide="check-circle-2"></i>Safe to chase</div><div class="v">68 orders</div></div>
+        <div class="tile block"><div class="k"><i data-lucide="shield-check"></i>Blocked — already paid</div><div class="v">₹1.9 Cr protected</div></div>
+        <div class="tile hold"><div class="k"><i data-lucide="user-check"></i>Needs your eye</div><div class="v">46 cases</div></div>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="who">Sunrise Enterprises<span>ORD-1381 · paid by bank transfer</span></span><span class="pill blocked">chase blocked</span><span class="pill proof">proof verified</span><span class="amt">₹4,82,500</span></div>
+        <div class="row"><span class="who">Bluepeak Solutions<span>ORD-1204 · paid net of 2% TDS</span></span><span class="pill blocked">chase blocked</span><span class="pill proof">proof verified</span><span class="amt">₹1,96,000</span></div>
+        <div class="row"><span class="who">Zenith Labs<span>ORD-1096 · two credits match</span></span><span class="pill review">held for review</span><span class="amt">₹73,250</span></div>
+        <div class="row"><span class="who">Northwind Traders<span>ORD-1440 · nothing arrived in any source</span></span><span class="pill proof">proven unpaid — safe to chase</span><span class="amt">₹58,400</span></div>
+      </div>
+    </div>
+    <div class="shotfoot">
+      <span class="q"><b>Want to test your own data?</b>
+      <span class="small">Paste a line from your bank statement — it never leaves this page.</span></span>
+      <span class="acts">
+        <a class="btn primary" href="#try">Try with a sample</a>
+        <a class="btn ghost" href="#start">Use your statement</a>
+      </span>
+    </div>
+  </div>
+</header>
+
+<section class="wrap" id="features">
+  <div class="center">
+    <h2>Hours of reconciliation,<br><em>settled before you chase</em></h2>
+    <p class="lede">Every automated decision carries its own receipt, and every doubtful
+    one waits for a human. The daemon does the grunt work; your team keeps the judgment.</p>
+  </div>
+  <div class="split">
+    <ul class="numlist">
+      <li><span class="no">01</span><div><b>Payments find their invoice before you do</b>
+        <p>Exact bank references first, then amounts inside the settlement window, then
+        split settlements, then the narration itself — in that order, never the reverse.</p></div></li>
+      <li><span class="no">02</span><div><b>Every decision ships with a receipt</b>
+        <p>Which rows it read, the arithmetic that has to add up, and the rule that fired.
+        Anyone can re-check it without trusting the engine.</p></div></li>
+      <li><span class="no">03</span><div><b>TDS-paying customers are never dunned</b>
+        <p>A shortfall that is exactly 1, 2 or 10% statutory TDS is a legally settled
+        invoice — the daemon marks it paid and points you to Form 26AS instead.</p></div></li>
+      <li><span class="no">04</span><div><b>When the data shifts, it pauses itself</b>
+        <p>If your bank feed stops looking like the one it learned from, fuzzy matching
+        switches itself off and waits — no silent wrong guesses.</p></div></li>
+    </ul>
+    <div class="stack">
+      <div class="mcard"><span class="mic"><i data-lucide="git-merge"></i></span>
+        <div><b>NEFT ₹4,82,500 — HDFC ····5678</b><p>Matched to INV-9021 · Sunrise Enterprises</p></div>
+        <span class="st g">✓ matched</span></div>
+      <div class="mcard"><span class="mic"><i data-lucide="receipt"></i></span>
+        <div><b>Proof receipt issued</b><p>3 source rows · sums to zero · rule R1</p></div>
+        <span class="st g">✓ verified</span></div>
+      <div class="mcard gold"><span class="mic"><i data-lucide="user-check"></i></span>
+        <div><b>Two credits fit ORD-1096</b><p>Held for a human — resolving takes one click</p></div>
+        <span class="st y">waiting</span></div>
+      <div class="mcard red"><span class="mic"><i data-lucide="hand"></i></span>
+        <div><b>Reminder to Bluepeak — stopped</b><p>They paid net of TDS six days ago</p></div>
+        <span class="st g">✓ blocked</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="band">
+  <div class="wrap center">
+    <h2>Never chase a paying customer<br><em>again</em></h2>
+    <p class="lede">Collections tools optimise how to chase. Ledger Daemon proves
+    <i>whether</i> to chase — and on our benchmark, the difference is ₹3.27 crore of
+    wrongly-chased invoices brought down to zero.</p>
+    <div class="cards3">
+      <div class="fcard">
+        <h3>One honest chase list</h3>
+        <p>Proven-unpaid on the left, protected customers in the middle, judgment calls
+        for you on the right.</p>
+        <div class="mini">
+          <div class="ln"><i data-lucide="check"></i>Northwind — proven unpaid, chase</div>
+          <div class="ln strike"><i data-lucide="shield-check"></i>Sunrise — already paid, blocked</div>
+          <div class="ln"><i data-lucide="user-check"></i>Zenith — your call, one click</div>
+        </div>
+      </div>
+      <div class="fcard">
+        <h3>Receipts, not vibes</h3>
+        <p>Every verdict can be re-checked from the source files by a verifier that
+        doesn’t trust the engine.</p>
+        <div class="mini"><div class="cert">order&nbsp;&nbsp;ORD-1381<br>
+sources&nbsp;3 rows · sha256 ✓<br>
+maths&nbsp;&nbsp;&nbsp;+482500 −482500 = 0<br>
+status&nbsp;&nbsp;<span class="g">VALID — proof 198629be…</span></div></div>
+      </div>
+      <div class="fcard">
+        <h3>Humans stay in charge</h3>
+        <p>Anything uncertain becomes a case with a version and a history. Your click is
+        recorded like every machine decision.</p>
+        <div class="mini">
+          <div style="font-weight:600;margin-bottom:2px">Did Zenith’s payment land?</div>
+          <div class="ln" style="padding-top:0">case #a41f · opened today</div>
+          <div class="btns"><span class="ok">Payment received</span><span class="no">Nothing arrived</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="orn" aria-hidden="true">
+  <svg viewBox="0 0 64 64" fill="none">
+    <circle cx="32" cy="32" r="18" stroke="#B98F2F" stroke-width="2.5"/>
+    <path d="M25 24h14M25 30h14M27 24c6 3 6 11 1 16h11" stroke="#B98F2F" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M32 6v6M32 52v6M6 32h6M52 32h6" stroke="#D8C289" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<section class="wrap">
+  <div class="center"><h2>Automated matching,<br><em>human judgment</em></h2></div>
+  <div class="trust">
+    <div class="tcol">
+      <h3>A human reviews every doubtful rupee</h3>
+      <p>The daemon never guesses on your behalf. Ambiguous payments, coverage gaps and
+      open disputes are held — visibly — until someone who knows the customer decides.</p>
+      <div class="chk"><i data-lucide="lock"></i>Zero autonomous risks on uncertain money</div>
+    </div>
+    <div class="stamp"><div class="stampin">
+      <div class="z">₹0</div>
+      <div class="zz">wrongly chased · every test we ran</div>
+    </div></div>
+    <div class="tcol">
+      <h3>Your data never leaves your machine</h3>
+      <p>No cloud, no account, no upload. The whole product runs locally from one
+      command, and the audit trail it writes can only ever grow — never be edited.</p>
+      <div class="chk"><i data-lucide="eye-off"></i>Local-first by architecture, not by policy</div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap center" id="try">
+  <h2>Watch it read a bank narration,<br><em>right here</em></h2>
+  <p class="lede">This is the product’s own reading layer, running in your browser.
+  Paste a line from your real statement — nothing you type is sent anywhere.</p>
+  <div class="widget">
+    <div class="chips">
+      <button class="chip">NEFT-HDFCP12345678-ACME TECHNOLOGIES PVT-INV9021</button>
+      <button class="chip">UPI/123456789012/Payment from/anika@okhdfcbank/INV7781</button>
+      <button class="chip">IMPS/P2A/456123789/BLUEPEAK SOLUTIONS/INV 4412</button>
+      <button class="chip">RAZORPAYSETTLEMENT-setl_MkT9aP2xQ</button>
+    </div>
+    <textarea id="narrIn" rows="2" spellcheck="false"
+      aria-label="Paste a bank narration">NEFT-HDFCP12345678-ACME TECHNOLOGIES PVT-INV9021</textarea>
+    <div class="hlbox" id="narrHl"></div>
+    <div class="spanrows" id="narrSpans"></div>
+    <p class="wnote">The daemon reads references, invoice numbers and names as typed
+    evidence — it structurally cannot read an instruction, an amount or a verdict out
+    of narration text. That’s what keeps a hostile bank line from ever moving money.</p>
+  </div>
+</section>
+
+<section class="wrap center" id="tested">
+  <h2>What we tested it on</h2>
+  <div class="tested">
+    <div class="tcard"><span class="tic"><i data-lucide="flask-conical"></i></span>
+      <h3>500-order simulated businesses</h3>
+      <p>Messy narrations, late settlements, split payouts, refunds, TDS deductions and
+      duplicate references — worlds where we know the true answer for every order, so
+      accuracy is measured, not assumed.</p></div>
+    <div class="tcard"><span class="tic"><i data-lucide="landmark"></i></span>
+      <h3>Real bank statement formats</h3>
+      <p>HDFC and ICICI netbanking CSV exports parse straight in — Indian number
+      formats, reference columns and all. Unrecognised layouts stop loudly instead of
+      guessing about money.</p></div>
+    <div class="tcard"><span class="tic"><i data-lucide="plug-zap"></i></span>
+      <h3>Live Razorpay test mode</h3>
+      <p>Real orders, payments and settlements from the Razorpay sandbox flow through
+      the same pipeline. Live keys are refused by design — it cannot touch production
+      money.</p></div>
+  </div>
+  <p class="resultline">Across every run: <b>100% of already-paid orders blocked</b> from
+  being chased, with <b>₹0 wrongly chased</b> — and the code to reproduce it is open.</p>
+</section>
+
+<section class="wrap center" id="start">
+  <h2>Up and running <em>in a minute</em></h2>
+  <p class="lede">One requirement: Python 3.11+. No accounts, no keys, no cloud.</p>
+  <div class="steps">
+    <div class="stepc">
+      <div class="sh"><span class="sn">1</span><b>Install</b></div>
+      <div class="codebox"><button class="cbtn" data-copy="git clone https://github.com/JAYATIAHUJA/razorpay-hack.git
+cd razorpay-hack/ledger-daemon
+python -m pip install -e .">copy</button><pre>git clone https://github.com/JAYATIAHUJA/razorpay-hack.git
+cd razorpay-hack/ledger-daemon
+python -m pip install -e .</pre></div>
+    </div>
+    <div class="stepc">
+      <div class="sh"><span class="sn">2</span><b>See it work on a full business</b></div>
+      <div class="codebox"><button class="cbtn" data-copy="python -m ledger_daemon ui">copy</button><pre>python -m ledger_daemon ui   <span class="cmt"># opens the chase list in your browser</span></pre></div>
+      <p class="why">A 500-order world is generated, reconciled and proven — you get the
+      screen from the top of this page, live and clickable.</p>
+    </div>
+    <div class="stepc">
+      <div class="sh"><span class="sn">3</span><b>Point it at your own statement</b></div>
+      <div class="codebox"><button class="cbtn" data-copy="python -m ledger_daemon import-statement bank.csv --out data/live
+python -m ledger_daemon ui --dir data/live">copy</button><pre>python -m ledger_daemon import-statement bank.csv --out data/live
+python -m ledger_daemon ui --dir data/live</pre></div>
+      <p class="why">Your HDFC/ICICI export becomes the bank feed. Everything stays on
+      your machine.</p>
+    </div>
+  </div>
+</section>
+
+<div class="outro">
+  <div class="scene" aria-hidden="true">
+    <div class="wash" style="width:600px;height:320px;left:8%;top:0;background:#DCE8F0;opacity:.7"></div>
+    <div class="wash" style="width:500px;height:300px;right:5%;top:30px;background:#EFE7CE;opacity:.7"></div>
+  </div>
+  <div class="wrap" style="position:relative;z-index:2">
+    <h2>Stop chasing money<br><em>you already have.</em></h2>
+    <div class="outroCtas">
+      <a class="btn primary" href="https://claude.ai/code/artifact/b96a0700-275c-4ed4-a355-a894858777de" target="_blank" rel="noopener">Open the live demo<i data-lucide="arrow-right"></i></a>
+      <a class="btn ghost" href="https://github.com/JAYATIAHUJA/razorpay-hack" target="_blank" rel="noopener">Read the code</a>
+    </div>
+  </div>
+  <div class="land" aria-hidden="true">
+    <svg preserveAspectRatio="none" viewBox="0 0 1440 220">
+      <path d="M0,120 C220,70 420,110 640,90 C880,68 1120,110 1440,80 L1440,220 L0,220 Z" fill="#A9C79B"/>
+      <path d="M0,160 C300,120 620,165 900,140 C1120,120 1300,150 1440,135 L1440,220 L0,220 Z" fill="#82A97B"/>
+      <g transform="translate(1050,96)">
+        <rect x="0" y="18" width="64" height="40" rx="2" fill="#F3EEDD"/>
+        <path d="M-6,20 L32,-6 L70,20 Z" fill="#5C7A5A"/>
+        <rect x="26" y="34" width="12" height="24" fill="#5C7A5A"/>
+        <rect x="8" y="28" width="10" height="10" fill="#C9D8C2"/>
+        <rect x="46" y="28" width="10" height="10" fill="#C9D8C2"/>
+      </g>
+      <path d="M0,196 C360,170 780,200 1440,180 L1440,220 L0,220 Z" fill="#5F8A62"/>
+    </svg>
+  </div>
+</div>
+
+<div class="footbar"><div class="wrap">
+  <div class="in">
+    <div><div class="brandf">₹ Ledger Daemon</div>
+      <div style="margin-top:6px">Warm, dependable software for people who’d rather
+      never send a wrong reminder.</div></div>
+    <div style="display:flex;gap:40px">
+      <div><b style="color:#fff">Product</b><br>
+        <a href="https://claude.ai/code/artifact/b96a0700-275c-4ed4-a355-a894858777de" target="_blank" rel="noopener">Live demo</a><br>
+        <a href="#try">Try it here</a><br><a href="#start">Install</a></div>
+      <div><b style="color:#fff">Project</b><br>
+        <a href="https://github.com/JAYATIAHUJA/razorpay-hack" target="_blank" rel="noopener">GitHub</a><br>
+        <a href="#tested">What we tested</a></div>
+    </div>
+  </div>
+  <div class="fine">Results above come from our open, reproducible benchmark (500-order
+  simulated businesses; real statement formats; Razorpay test mode). Simulated data is
+  not production proof — which is why every number, and the code that makes it, is
+  public. Built for the Razorpay AI Buildathon 2026, Track 04: AI Finance Controller.</div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.462.0/dist/umd/lucide.min.js"></script>
+<script>
+if (window.lucide) lucide.createIcons();
+
+/* ---------- the reading layer, ported pattern-for-pattern ---------- */
+const STOPWORDS = new Set(["PAYMENT FROM","PAYMENT","P2A","P2P","INV","INVOICE","REF",
+  "REFERENCE","NEFT","IMPS","RTGS","UPI","ACH","CR","DR","BY","FROM","TO"]);
+const NICE = {settlement_id:"settlement id",upi_ref:"UPI reference",vpa:"UPI id",
+  invoice:"invoice no.",mode:"transfer mode",utr:"bank reference",name:"payer name"};
+
+function candidates(text){
+  const out = [];
+  const add = (kind, m, gi=1) => { if (m && m[gi] !== undefined)
+    out.push({kind, value:m[gi], start:m.index + m[0].indexOf(m[gi]), end:0}); };
+  for (const m of text.matchAll(/RAZORPAYSETTLEMENT-(\S+)/gi)) add("settlement_id", m);
+  for (const m of text.matchAll(/UPI\/(\d{9,12})/gi)) add("upi_ref", m);
+  for (const m of text.matchAll(/([\w.\-]+@[\w]+)/g)) add("vpa", m);
+  for (const m of text.matchAll(/(?:INV|INVOICE)[\s\-\/]?(\d{3,8})/gi)) add("invoice", m);
+  const mode = text.match(/^\s*(NEFT|IMPS|RTGS|UPI|ACH)\b/i); add("mode", mode);
+  for (const m of text.matchAll(/\b([A-Z]{4}[A-Z0-9]{6,18})\b/g))
+    if (/\d/.test(m[1])) add("utr", m);
+  if (mode){
+    let i = 0;
+    for (const seg of text.matchAll(/[^-\/]+/g)){
+      if (i++ === 0) continue;
+      const raw = seg[0], t = raw.trim();
+      if (!t || t.length > 40 || t.includes("@") || /\d/.test(t)) continue;
+      if (STOPWORDS.has(t.toUpperCase()) || !/^\p{L}/u.test(t)) continue;
+      const s = seg.index + (raw.length - raw.trimStart().length);
+      out.push({kind:"name", value:t, start:s, end:s + t.length});
+      break;
+    }
+  }
+  out.forEach(c => { if (!c.end) c.end = c.start + c.value.length; });
+  return out;
+}
+function sanitize(cands, text){
+  const kept = [];
+  for (const c of cands){
+    if (c.start < 0 || c.end > text.length || text.slice(c.start, c.end) !== c.value) continue;
+    if (kept.some(k => c.start < k.end && k.start < c.end)) continue;
+    if (kept.length >= 32) break;
+    kept.push(c);
+  }
+  return kept.sort((a, b) => a.start - b.start);
+}
+const esc = s => s.replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+
+function renderNarr(){
+  const text = document.getElementById("narrIn").value.slice(0, 4096);
+  const spans = sanitize(candidates(text), text);
+  let html = "", pos = 0;
+  for (const s of spans){
+    html += esc(text.slice(pos, s.start)) + `<mark class="${s.kind}">${esc(s.value)}</mark>`;
+    pos = s.end;
+  }
+  html += esc(text.slice(pos));
+  document.getElementById("narrHl").innerHTML = html || '<span style="color:var(--dim)">paste a narration…</span>';
+  document.getElementById("narrSpans").innerHTML = spans.length
+    ? spans.map(s => `<div class="row2"><span class="kind"><mark class="${s.kind}">${NICE[s.kind]}</mark></span>`
+        + `<span class="val">${esc(s.value)}</span></div>`).join("")
+    : '<div class="row2"><span class="kind" style="color:var(--dim)">nothing read</span><span class="val" style="color:var(--dim)">no valid evidence in this line — the daemon abstains rather than guessing</span></div>';
+}
+
+document.addEventListener("input", e => { if (e.target.id === "narrIn") renderNarr(); });
+document.addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if (chip){
+    document.getElementById("narrIn").value = chip.textContent.trim();
+    renderNarr(); return;
+  }
+  const copy = e.target.closest("[data-copy]");
+  if (copy){
+    navigator.clipboard.writeText(copy.dataset.copy).then(() => {
+      copy.textContent = "copied ✓";
+      setTimeout(() => { copy.textContent = "copy"; }, 1600);
+    }).catch(() => { copy.textContent = "select & copy"; });
+  }
+});
+renderNarr();
+</script>
+
+</body>
+</html>
