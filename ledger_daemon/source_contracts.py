@@ -133,7 +133,7 @@ def validate_row(source: SourceKind, row: object) -> SourceEnvelope:
     if source is SourceKind.FINANCE_EVENT:
         from .finance_events import (
             Adjustment, Dispute, FinanceEventError, LedgerEntry, Refund,
-            Settlement, decode_finance_event,
+            Settlement, TdsEvidence, decode_finance_event,
         )
         from .money import FloatMoneyError
 
@@ -148,6 +148,7 @@ def validate_row(source: SourceKind, row: object) -> SourceEnvelope:
         id_fields = {
             Refund: "refund_id", Dispute: "dispute_id", Adjustment: "adjustment_id",
             Settlement: "settlement_id", LedgerEntry: "entry_id",
+            TdsEvidence: "evidence_id",
         }
         row_id = getattr(event, id_fields[type(event)])
         normalized = mask_pii(row)

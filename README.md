@@ -118,17 +118,19 @@ The false-hold rate is always printed next to DCPR — without it, DCPR is gamea
 - **Cost-sensitive floors (Elkan 2001)** — the threshold moves with the invoice value: blocking a chase on a ₹5,00,000 invoice demands more certainty than on a ₹4,200 one.
 - **Integer paise everywhere.** Floats are forbidden in every monetary path and a test enforces it.
 
-## The tenth verdict: paid net of TDS
+## TDS: a percentage is a clue, never proof
 
-The most common "unpaid" invoice in Indian B2B is not unpaid. The customer paid it minus 2% or 10% statutory TDS (Section 194C/194J), deposited that tax against the merchant's PAN, and moved on — legally settled in full. The merchant's books show a shortfall forever; the money lives in Form 26AS, not in a bank transfer that is ever going to arrive.
+An Indian B2B receipt can be lower than its invoice because tax was withheld, but the same arithmetic can also be a genuine short-payment. Ledger Daemon therefore has two different verdicts. A rate-shaped shortfall without external tax evidence is `POSSIBLE_TDS_WITHHOLDING`: collections is held and a human must obtain evidence. `PAID_NET_OF_TDS` is available only when the bank receipt is accompanied by a typed, source-bound TDS record containing the exact withheld amount, hashed payer and merchant PAN identities, an effective-date-versioned tax-rule id, and a certificate reference.
 
 Every schedule-driven dunning system reads that shortfall as a debt. Ledger Daemon's exact-amount candidate gate used to make the same mistake in a worse way: the net credit never even became a match candidate, so a fully compliant payer came out `GENUINELY_UNPAID` — the exact wrong chase this project exists to prevent, hiding inside it.
 
 The fix is three deliberate pieces, not a tolerance band:
 
 - **`tds_rate_bp()`** recognises a shortfall that is *exactly* 1%, 2% or 10% of the invoice, integer paise, no tolerance — a shortfall that is *approximately* 2% is a short payment and stays chaseable (test-enforced).
-- The candidate gate probes the three statutory net amounts alongside the exact amount, so the credit enters Fellegi-Sunter scoring, where name, date and invoice-number evidence still have to earn the match. The waterfall prints `amount (net of 2% statutory TDS)` — the deduction is part of the explanation, not an excuse.
-- The policy engine denies with its own auditable rule: `R1_DENY_NET_OF_TDS — reconcile Form 26AS, do not dun a legally compliant payer`.
+- The candidate gate probes common TDS-shaped net amounts so the receipt can enter matching. That heuristic cannot close the invoice.
+- Without typed evidence, policy returns a human `HOLD`; it does not declare the customer compliant or the invoice settled.
+- With matching typed evidence, the proof certificate binds the tax-evidence row and its amount. The independent verifier rejects raw PAN values, mismatched amounts, future-effective rules, missing evidence, and tampering.
+- Tax applicability is not inferred by this project. The rule id and certificate reference come from an external tax/accounting source; this remains an operational control, not a statutory audit opinion.
 
 Adding the verdict tripped `_assert_exhaustive()` before any of that logic existed — the policy engine refused to import until someone declared what collections does about withheld tax. That is the exhaustiveness guard doing its job on a real feature, not in a demo.
 
@@ -171,7 +173,7 @@ Read R2 vs R3 honestly: conformal abstention *costs* 2.4 points of match rate �
 python -m ledger_daemon prove
 ```
 
-It injects an unhandled verdict into the live enum and shows the policy engine refusing to load. This is the layer that turned the taxonomy from documentation into a constraint — and it is not hypothetical: `PAID_NET_OF_TDS`, the tenth verdict, was added through exactly this gate.
+It injects an unhandled verdict into the live enum and shows the policy engine refusing to load. This is the layer that turned the taxonomy from documentation into a constraint — and it is not hypothetical: both verified and merely possible TDS states were added through exactly this gate.
 
 **"Hand-rolled string matching?"** The stdlib Jaro-Winkler is parity-tested against **rapidfuzz**'s C++ implementation (500 randomized cases, exact agreement — the test caught a real divergence in Winkler's boost-threshold rule). rapidfuzz is used automatically when installed; the stdlib path remains the dependency-free contract.
 

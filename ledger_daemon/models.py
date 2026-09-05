@@ -1,4 +1,4 @@
-"""Domain models: the 9-verdict taxonomy (FR-3) and record types.
+"""Domain models: the closed verdict taxonomy (FR-3) and record types.
 
 Exactly one verdict per order. The executor is reachable only for
 GENUINELY_UNPAID and PARTIALLY_PAID (FR-3.1) — enforced by the policy engine.
@@ -22,8 +22,9 @@ class Verdict(str, Enum):
     REFUNDED_THEN_REPAID = "refunded_then_repaid"  # net settled           <- wrongly chaseable
     PARTIALLY_PAID = "partially_paid"          # chase only the delta
     PAID_NET_OF_TDS = "paid_net_of_tds"        # bank credit = invoice minus a
-                                               # statutory TDS rate; the shortfall
-                                               # lives in Form 26AS, not in dunning
+                                               # source-bound, verified TDS amount
+    POSSIBLE_TDS_WITHHOLDING = "possible_tds_withholding"  # rate-shaped shortfall,
+                                                            # external proof absent
     GENUINELY_UNPAID = "genuinely_unpaid"      # the ONLY clean chaseable state
     FAILED_NOT_DEBITED = "failed_not_debited"  # retry, do not dun
     CHARGEBACK_OPEN = "chargeback_open"        # freeze, escalate

@@ -266,6 +266,7 @@ _VERDICT_LABEL = {
     "paid_out_of_band": "paid by bank transfer",
     "refunded_then_repaid": "refunded, then repaid",
     "paid_net_of_tds": "paid net of TDS",
+    "possible_tds_withholding": "possible TDS — evidence required",
     "partially_paid": "partially paid",
     "genuinely_unpaid": "genuinely unpaid",
     "failed_not_debited": "failed, never debited",

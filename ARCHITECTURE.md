@@ -21,7 +21,7 @@ reconcile(orders, captures, bank, q_hat, fs_model)
    │     ├─ duplicate-UTR check (→ AMBIGUOUS)
    │     ├─ conformal decision at derived q_hat (→ MATCH/NON_MATCH/AMBIGUOUS)
    │     └─ cost-sensitive floor by invoice value
-   └─ flat verdict decision table → exactly one of 9 verdicts + evidence_refs
+   └─ flat verdict decision table → exactly one of 11 verdicts + evidence_refs
    │
    ├─ certificates.write_proof_bundle() → one signed proof per order
    │     ├─ verify_certificate(): source hashes, amount equation, rule allowlist

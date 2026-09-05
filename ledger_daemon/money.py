@@ -33,17 +33,17 @@ def pct_bp(amount: int, basis_points: int) -> int:
     return (paise(amount) * paise(basis_points)) // 10_000
 
 
-# Statutory TDS rates a B2B payer may withhold before paying an invoice:
-# 1% (194C, individual/HUF contractor), 2% (194C company / 194H / 194J technical),
-# 10% (194J professional fees). Basis points, integer arithmetic only.
+# Common legacy TDS-shaped shortfalls used only to widen the candidate gate.
+# They are not a tax-law engine and never prove that withholding was valid.
+# PAID_NET_OF_TDS additionally requires typed, source-bound external evidence.
 STATUTORY_TDS_RATES_BP = (100, 200, 1000)
 
 
 def tds_rate_bp(gross: int, received: int) -> int | None:
-    """The statutory TDS rate (in bp) if `received` is exactly `gross` net of one.
+    """Return a common TDS-shaped rate when the amounts match exactly.
 
-    Exact-paise test, no tolerance: a shortfall that is *approximately* 2% is a
-    short payment, not TDS, and must stay chaseable. Returns None otherwise.
+    This is candidate generation, not a tax or settlement conclusion. A typed
+    tax-evidence source is required before reconciliation may close the invoice.
     """
     if received <= 0 or received >= paise(gross):
         return None

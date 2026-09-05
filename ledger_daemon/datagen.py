@@ -19,7 +19,7 @@ import random
 from dataclasses import asdict, dataclass
 
 from .finance_events import (
-    Adjustment, Dispute, FinanceEvent, LedgerEntry, Refund, Settlement,
+    Adjustment, Dispute, FinanceEvent, LedgerEntry, Refund, Settlement, TdsEvidence,
     encode_finance_event,
 )
 from .models import BankTxn, GatewayCapture, Order, Verdict
@@ -166,6 +166,7 @@ class _Gen:
         self.orders: list[Order] = []
         self.captures: list[GatewayCapture] = []
         self.bank: list[BankTxn] = []
+        self.tds_evidence: list[TdsEvidence] = []
         self.truth: list[dict] = []
         self._txn_no = 80000
         self._pay_no = 40000
@@ -380,6 +381,16 @@ class _Gen:
                 utr=self._utr(),
                 narration=self._oob_narration(o, with_inv, k % 2 == 0),
             )
+            self.tds_evidence.append(TdsEvidence(
+                evidence_id=f"TDSE-{o.order_id}",
+                order_id=o.order_id,
+                amount_paise=sub(o.amount_paise, net),
+                payer_pan_hash="a" * 64,
+                merchant_pan_hash="b" * 64,
+                tax_rule_id="ITA2025:S393:WITHHOLDING@2026-04-01",
+                certificate_ref=f"FORM26AS:2026Q2:{o.order_id}",
+                occurred_at=o.due_date,
+            ))
             self._label(o, Verdict.PAID_NET_OF_TDS, True, False)
 
         # split settlement: 2-4 captures share one settlement_id -> one credit
@@ -510,7 +521,7 @@ def generate(seed: int, n: int, out_dir: str, profile: str = "clean") -> dict[st
 
     g = _Gen(seed, n, profile)
     g.build()
-    events: list[FinanceEvent] = []
+    events: list[FinanceEvent] = list(g.tds_evidence)
     captured_by_order = {
         capture.order_id: capture for capture in g.captures if capture.status == "captured"
     }

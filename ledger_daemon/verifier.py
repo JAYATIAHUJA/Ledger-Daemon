@@ -23,12 +23,13 @@ from .source_contracts import sha256_hex
 
 _VERDICTS = frozenset({
     "settled_clean", "settled_late", "paid_out_of_band", "refunded_then_repaid",
-    "partially_paid", "paid_net_of_tds", "genuinely_unpaid", "failed_not_debited",
+    "partially_paid", "paid_net_of_tds", "possible_tds_withholding",
+    "genuinely_unpaid", "failed_not_debited",
     "chargeback_open", "ambiguous",
 })
 _PASSES = frozenset({
     "pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id", "pass4_fuzzy",
-    "pass4_rejected",
+    "pass4_rejected", "pass4_fuzzy_tds_evidence",
     "gateway_status", "finance_event_dispute", "net_arithmetic", "exhausted", "none",
 })
 _ALLOWED_RULES = frozenset(
@@ -40,8 +41,10 @@ _RULE_VERDICTS = {
     "pass2_amount_date": frozenset({"settled_clean", "settled_late", "partially_paid"}),
     "pass3_settlement_id": frozenset({"settled_clean", "settled_late", "partially_paid"}),
     "pass4_fuzzy": frozenset({
-        "paid_out_of_band", "paid_net_of_tds", "refunded_then_repaid", "ambiguous",
+        "paid_out_of_band", "refunded_then_repaid", "ambiguous",
+        "possible_tds_withholding",
     }),
+    "pass4_fuzzy_tds_evidence": frozenset({"paid_net_of_tds"}),
     "pass4_rejected": frozenset({"genuinely_unpaid"}),
     "gateway_status": frozenset({"chargeback_open", "failed_not_debited"}),
     "finance_event_dispute": frozenset({"chargeback_open"}),
@@ -208,7 +211,7 @@ def verify_identity_certificate(certificate: IdentityCertificate,
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for name in ("refund_id", "dispute_id", "adjustment_id", "entry_id"):
+    for name in ("refund_id", "dispute_id", "adjustment_id", "entry_id", "evidence_id"):
         if name in row:
             return row[name] if isinstance(row[name], str) else None
     identifiers = [row.get(name) for name in ("order_id", "payment_id", "txn_id") if name in row]
@@ -308,6 +311,43 @@ def _verify_certificate(
         elif sha256_hex(row) != expected_hash:
             reject("SOURCE_HASH_MISMATCH")
 
+    # Re-validate the load-bearing tax evidence without importing the issuer's
+    # decoder. A correctly hashed malformed row is still not financial proof.
+    tds_fields = {
+        "event_type", "evidence_id", "order_id", "amount_paise",
+        "payer_pan_hash", "merchant_pan_hash", "tax_rule_id",
+        "certificate_ref", "occurred_at",
+    }
+    for row_id in claimed_hashes:
+        row = indexed.get(row_id)
+        if row is None or row.get("event_type") != "tds_evidence":
+            continue
+        try:
+            rule_id = row.get("tax_rule_id")
+            occurred = row.get("occurred_at")
+            effective_text = (rule_id.rsplit("@", 1)[1]
+                              if isinstance(rule_id, str) and "@" in rule_id else "")
+            invalid = (
+                set(row) != tds_fields
+                or type(row.get("amount_paise")) is not int
+                or row.get("amount_paise", 0) <= 0
+                or any(re.fullmatch(r"[0-9a-f]{64}", str(row.get(field, ""))) is None
+                       for field in ("payer_pan_hash", "merchant_pan_hash"))
+                or not isinstance(rule_id, str)
+                or re.fullmatch(
+                    r"[A-Z0-9]+:[A-Z0-9:_-]+@[0-9]{4}-[0-9]{2}-[0-9]{2}",
+                    rule_id,
+                ) is None
+                or not isinstance(occurred, str)
+                or date.fromisoformat(effective_text) > date.fromisoformat(occurred)
+                or not isinstance(row.get("certificate_ref"), str)
+                or not str(row.get("certificate_ref")).strip()
+            )
+        except (ValueError, IndexError):
+            invalid = True
+        if invalid:
+            reject("TDS_EVIDENCE_INVALID")
+
     for term in certificate.amount_terms:
         if type(term.amount_paise) is not int:
             reject("NON_INTEGER_MONEY")
@@ -339,7 +379,8 @@ def _verify_certificate(
         elif certificate.verdict == "partially_paid":
             if invoice != certificate.money_received_paise + certificate.delta_due_paise:
                 reject("VERDICT_AMOUNT_MISMATCH")
-        elif certificate.verdict not in {"ambiguous", "failed_not_debited"}:
+        elif certificate.verdict not in {
+                "ambiguous", "possible_tds_withholding", "failed_not_debited"}:
             if invoice != certificate.money_received_paise:
                 reject("VERDICT_AMOUNT_MISMATCH")
 
@@ -391,7 +432,8 @@ def _verify_certificate(
                 ("invoice", invoice, certificate.order_id, "amount_paise"),
                 ("unpaid_exposure", -invoice, "", ""),
             ))
-        elif certificate.verdict not in {"ambiguous", "failed_not_debited"}:
+        elif certificate.verdict not in {
+                "ambiguous", "possible_tds_withholding", "failed_not_debited"}:
             expected_terms.extend((
                 ("invoice", invoice, certificate.order_id, "amount_paise"),
                 ("money_received", -certificate.money_received_paise, "", ""),
@@ -399,9 +441,15 @@ def _verify_certificate(
             if certificate.verdict == "partially_paid":
                 expected_terms.append(("delta_due", -certificate.delta_due_paise, "", ""))
             elif certificate.verdict == "paid_net_of_tds":
-                expected_terms.append((
-                    "tds_withheld", -(invoice - certificate.money_received_paise), "", ""
-                ))
+                tds_rows = [row for row in claimed_rows
+                            if row.get("event_type") == "tds_evidence"]
+                if len(tds_rows) != 1:
+                    reject("TDS_EVIDENCE_MISSING")
+                else:
+                    expected_terms.append((
+                        "tds_withheld", -(invoice - certificate.money_received_paise),
+                        str(tds_rows[0].get("evidence_id")), "amount_paise",
+                    ))
 
     if recon_rule in {"pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id"}:
         for row in sorted(claimed_captures, key=lambda item: str(item.get("payment_id"))):
@@ -415,7 +463,8 @@ def _verify_certificate(
             expected_terms.append((
                 "bank_credit", -row.get("amount_paise"), row.get("txn_id"), "amount_paise"
             ))
-    elif recon_rule == "pass4_fuzzy" and certificate.verdict != "ambiguous":
+    elif recon_rule in {"pass4_fuzzy", "pass4_fuzzy_tds_evidence"} \
+            and certificate.verdict not in {"ambiguous", "possible_tds_withholding"}:
         for row in sorted(claimed_credits, key=lambda item: str(item.get("txn_id"))):
             expected_terms.extend((
                 ("bank_credit", row.get("amount_paise"), row.get("txn_id"), "amount_paise"),
@@ -494,15 +543,20 @@ def _verify_certificate(
                 if ((certificate.verdict == "settled_clean" and delay > 1)
                         or (certificate.verdict == "settled_late" and delay <= 1)):
                     reject("VERDICT_EVIDENCE_MISMATCH")
-    elif recon_rule == "pass4_fuzzy" and certificate.verdict != "ambiguous":
+    elif recon_rule in {"pass4_fuzzy", "pass4_fuzzy_tds_evidence"} \
+            and certificate.verdict not in {"ambiguous", "possible_tds_withholding"}:
         if len(claimed_credits) != 1:
             reject("EVIDENCE_SHAPE_MISMATCH")
         elif claimed_credits[0].get("amount_paise") != certificate.money_received_paise:
             reject("EVIDENCE_AMOUNT_MISMATCH")
         if certificate.verdict == "paid_net_of_tds" and type(invoice) is int:
-            allowed_nets = {invoice - (invoice * rate // 10_000) for rate in (100, 200, 1_000)}
-            if certificate.money_received_paise not in allowed_nets:
-                reject("TDS_RATE_NOT_ALLOWED")
+            tds_rows = [row for row in claimed_rows
+                        if row.get("event_type") == "tds_evidence"]
+            withheld = invoice - certificate.money_received_paise
+            if (len(tds_rows) != 1
+                    or tds_rows[0].get("order_id") != certificate.order_id
+                    or tds_rows[0].get("amount_paise") != withheld):
+                reject("TDS_EVIDENCE_MISMATCH")
         if certificate.verdict in {"paid_out_of_band", "paid_net_of_tds"} and full_captures:
             reject("VERDICT_EVIDENCE_MISMATCH")
         if certificate.verdict == "refunded_then_repaid":

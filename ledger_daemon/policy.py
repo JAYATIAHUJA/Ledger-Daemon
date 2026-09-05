@@ -46,7 +46,7 @@ class Decision:
 class Disposition(str, Enum):
     """What R1 does with a verdict, before any of the later gates run.
 
-    One entry per Verdict, no catch-all. Adding a 10th verdict without deciding
+    One entry per Verdict, no catch-all. Adding a verdict without deciding
     its disposition is an ImportError at module load, not a silent DENY in
     production -- see _assert_exhaustive() below.
     """
@@ -66,6 +66,7 @@ VERDICT_DISPOSITION: dict[Verdict, Disposition] = {
     Verdict.PARTIALLY_PAID:       Disposition.CHASE,
     Verdict.GENUINELY_UNPAID:     Disposition.CHASE,
     Verdict.PAID_NET_OF_TDS:      Disposition.BLOCK_STATUTORY_DEDUCTION,
+    Verdict.POSSIBLE_TDS_WITHHOLDING: Disposition.ABSTAIN_FOR_HUMAN,
     Verdict.FAILED_NOT_DEBITED:   Disposition.BLOCK_NOT_A_DEBT,
     Verdict.CHARGEBACK_OPEN:      Disposition.FREEZE_ESCALATE,
     Verdict.AMBIGUOUS:            Disposition.ABSTAIN_FOR_HUMAN,
@@ -117,9 +118,8 @@ def _r1(verdict: Verdict) -> Decision | None:
                         f"{verdict.value}: never debited, this is a retry not a dunning case")
     if d is Disposition.BLOCK_STATUTORY_DEDUCTION:
         return Decision(DENY, "R1_DENY_NET_OF_TDS",
-                        f"{verdict.value}: the shortfall is statutory TDS the customer has "
-                        "withheld and will deposit against your PAN — reconcile Form 26AS, "
-                        "do not dun a legally compliant payer")
+                        f"{verdict.value}: source-bound evidence covers the withheld amount — "
+                        "verify the referenced Form 26AS/TDS certificate; do not dun")
     if d is Disposition.FREEZE_ESCALATE:
         return Decision(ESCALATE, "R1_ESCALATE_DISPUTE_OPEN",
                         f"{verdict.value}: dispute in flight, collections must freeze")

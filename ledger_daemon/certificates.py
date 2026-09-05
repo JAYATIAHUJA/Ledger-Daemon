@@ -277,7 +277,7 @@ def source_rows(orders: Iterable[object], captures: Iterable[object],
 
 
 def _row_id(row: dict[str, object]) -> str:
-    finance_ids = ("refund_id", "dispute_id", "adjustment_id", "entry_id")
+    finance_ids = ("refund_id", "dispute_id", "adjustment_id", "entry_id", "evidence_id")
     finance_id = next((row[field] for field in finance_ids if field in row), None)
     if finance_id is not None:
         value = finance_id
@@ -341,7 +341,7 @@ def _amount_terms(order: object, verdict: object,
                   evidence_rows: list[dict[str, object]]) -> tuple[AmountTerm, ...]:
     verdict_name = verdict.verdict.value
     invoice = order.amount_paise
-    if verdict_name == "ambiguous":
+    if verdict_name in {"ambiguous", "possible_tds_withholding"}:
         terms: list[AmountTerm] = []
     elif verdict_name == "genuinely_unpaid":
         terms = [
@@ -358,7 +358,16 @@ def _amount_terms(order: object, verdict: object,
         if verdict_name == "partially_paid":
             terms.append(AmountTerm("delta_due", -verdict.delta_due_paise))
         elif verdict_name == "paid_net_of_tds":
-            terms.append(AmountTerm("tds_withheld", -(invoice - verdict.money_received_paise)))
+            tds_row = next(
+                (row for row in evidence_rows if row.get("event_type") == "tds_evidence"),
+                None,
+            )
+            if tds_row is None:
+                raise ValueError("paid_net_of_tds requires typed TDS evidence")
+            terms.append(AmountTerm(
+                "tds_withheld", -(invoice - verdict.money_received_paise),
+                _row_id(tds_row), "amount_paise",
+            ))
 
     if verdict.evidence.pass_used in {
         "pass1_exact_utr", "pass2_amount_date", "pass3_settlement_id",
@@ -376,7 +385,8 @@ def _amount_terms(order: object, verdict: object,
                           key=_row_id):
             terms.append(AmountTerm("bank_credit", -row["amount_paise"],
                                     _row_id(row), "amount_paise"))
-    elif verdict.evidence.pass_used == "pass4_fuzzy" and verdict_name != "ambiguous":
+    elif verdict.evidence.pass_used in {"pass4_fuzzy", "pass4_fuzzy_tds_evidence"} \
+            and verdict_name not in {"ambiguous", "possible_tds_withholding"}:
         for row in sorted((row for row in evidence_rows
                            if "txn_id" in row and row.get("credit_debit") == "credit"),
                           key=_row_id):

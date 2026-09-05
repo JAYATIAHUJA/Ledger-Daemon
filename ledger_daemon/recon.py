@@ -22,7 +22,7 @@ from dataclasses import dataclass, field, replace
 
 from . import conformal as cf
 from .fs import FSModel, _day_delta, p_match
-from .finance_events import Dispute, FinanceEvent
+from .finance_events import Dispute, FinanceEvent, TdsEvidence
 from .models import BankTxn, Evidence, GatewayCapture, Order, OrderVerdict, Verdict
 from .money import STATUTORY_TDS_RATES_BP, add, pct_bp, sub, tds_rate_bp
 from .narration import parse
@@ -191,9 +191,12 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
         caps_by_order.setdefault(c.order_id, []).append(c)
 
     open_disputes: dict[str, list[str]] = {}
+    tds_evidence: dict[str, list[TdsEvidence]] = {}
     for event in finance_events:
         if isinstance(event, Dispute) and event.status == "open":
             open_disputes.setdefault(event.order_id, []).append(event.dispute_id)
+        elif isinstance(event, TdsEvidence):
+            tds_evidence.setdefault(event.order_id, []).append(event)
 
     credits = [b for b in bank if b.credit_debit == "credit"]
     coverage_end = max((b.value_date for b in bank), default="0000-00-00")
@@ -280,11 +283,20 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
     from .similarity import name_similarity
     for o in fuzzy_orders:
         cands = []
-        # amount gate (FR-2.4): exact paise, plus the three statutory TDS nets —
-        # a B2B payer who withheld 1/2/10% must still become a candidate
-        candidate_txns = list(pool_by_amount.get(o.amount_paise, []))
+        # Amount gate (FR-2.4): exact paise plus common TDS-shaped nets. This
+        # only creates a candidate; typed external evidence is required to
+        # issue PAID_NET_OF_TDS.
+        candidate_amounts = {o.amount_paise}
         for bp in STATUTORY_TDS_RATES_BP:
-            candidate_txns += pool_by_amount.get(sub(o.amount_paise, pct_bp(o.amount_paise, bp)), [])
+            candidate_amounts.add(sub(o.amount_paise, pct_bp(o.amount_paise, bp)))
+        for proof in tds_evidence.get(o.order_id, []):
+            if proof.amount_paise < o.amount_paise:
+                candidate_amounts.add(sub(o.amount_paise, proof.amount_paise))
+        candidate_txns = [
+            txn
+            for amount in sorted(candidate_amounts)
+            for txn in pool_by_amount.get(amount, [])
+        ]
         for b in candidate_txns:
             if config.simple_scores:
                 sim = name_similarity(o.customer_name, b.narration)
@@ -317,7 +329,8 @@ def reconcile(orders: list[Order], captures: list[GatewayCapture], bank: list[Ba
         caps = caps_by_order.get(o.order_id, [])
         v = _resolve(o, caps, settlement_hit, assignment, edges, txn_by_id,
                      utr_counts, q_hat, coverage_end, o.order_id in refund_net_zero,
-                     config, open_disputes.get(o.order_id, []))
+                     config, open_disputes.get(o.order_id, []),
+                     tds_evidence.get(o.order_id, []))
         verdicts[o.order_id] = v
 
     elapsed = time.perf_counter() - t0
@@ -332,7 +345,8 @@ def _resolve(o: Order, caps: list[GatewayCapture],
              settlement_hit: dict, assignment: dict, edges: dict, txn_by_id: dict,
              utr_counts: dict, q_hat: float, coverage_end: str,
              is_refund_net_zero: bool, config: ReconConfig = FULL,
-             open_dispute_refs: list[str] | None = None) -> OrderVerdict:
+             open_dispute_refs: list[str] | None = None,
+             tds_evidence: list[TdsEvidence] | None = None) -> OrderVerdict:
     def mk(verdict, ev, **kw):
         return OrderVerdict(order_id=o.order_id, verdict=verdict,
                             evidence_refs=ev.source_rows, evidence=ev, **kw)
@@ -454,15 +468,37 @@ def _resolve(o: Order, caps: list[GatewayCapture],
         )
         probabilistic_evidence = ev
         if decision == "MATCH":
+            withheld = (sub(o.amount_paise, b.amount_paise)
+                        if not is_refund_net_zero and b.amount_paise < o.amount_paise else 0)
+            proof = next((item for item in (tds_evidence or [])
+                          if item.amount_paise == withheld), None)
+            if withheld and proof is not None:
+                proven = Evidence(
+                    "pass4_fuzzy_tds_evidence", [proof.evidence_id, b.txn_id],
+                    f"bank credit plus verified TDS evidence {proof.evidence_id}",
+                    waterfall, automation_path="probabilistic",
+                    risk_calibration_id=ev.risk_calibration_id,
+                    risk_authorized=ev.risk_authorized,
+                    score_ppm=ev.score_ppm,
+                    authority_state=ev.authority_state,
+                )
+                return mk(Verdict.PAID_NET_OF_TDS, proven,
+                          money_received_paise=b.amount_paise, p_match=f"{p:.4f}",
+                          reason=f"bank receipt plus verified TDS evidence; "
+                                 f"{withheld} paise withheld under {proof.tax_rule_id} — "
+                                 f"P(match)={p:.4f}")
             rate = None if is_refund_net_zero else tds_rate_bp(o.amount_paise, b.amount_paise)
             if rate is not None:
-                withheld = sub(o.amount_paise, b.amount_paise)
-                return mk(Verdict.PAID_NET_OF_TDS, ev,
-                          money_received_paise=b.amount_paise,
-                          p_match=f"{p:.4f}",
-                          reason=f"paid net of {rate // 100}% statutory TDS "
-                                 f"({withheld} paise withheld against Form 26AS) — "
-                                 f"P(match)={p:.4f}")
+                if proof is None:
+                    held = Evidence(
+                        "pass4_fuzzy", [b.txn_id],
+                        f"credit has a {rate / 100:g}% TDS-shaped shortfall but no "
+                        "typed tax evidence",
+                        waterfall, automation_path="manual",
+                    )
+                    return mk(Verdict.POSSIBLE_TDS_WITHHOLDING, held,
+                              reason="possible TDS withholding; verified tax evidence "
+                                     "is required before closing the invoice")
             verdict = Verdict.REFUNDED_THEN_REPAID if is_refund_net_zero else Verdict.PAID_OUT_OF_BAND
             floors = f"conformal q_hat={q_hat:.4f}" if config.use_conformal else "P>=0.5"
             if config.use_cost_floor and not config.simple_scores:

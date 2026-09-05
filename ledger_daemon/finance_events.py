@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import re
 from typing import TypeAlias
 
 from .money import paise
@@ -153,7 +154,48 @@ class LedgerEntry:
         _date(self.occurred_at, "occurred_at")
 
 
-FinanceEvent: TypeAlias = Refund | Dispute | Adjustment | Settlement | LedgerEntry
+@dataclass(frozen=True)
+class TdsEvidence:
+    """External tax evidence required before a net receipt can close an invoice.
+
+    PANs are accepted only as SHA-256 digests: source adapters must mask the
+    identifiers before this boundary.  ``tax_rule_id`` is deliberately data,
+    not executable tax logic, so rules remain effective-date versioned.
+    """
+
+    evidence_id: str
+    order_id: str
+    amount_paise: int
+    payer_pan_hash: str
+    merchant_pan_hash: str
+    tax_rule_id: str
+    certificate_ref: str
+    occurred_at: str
+
+    def __post_init__(self) -> None:
+        for field in ("evidence_id", "order_id", "tax_rule_id", "certificate_ref"):
+            _required_text(getattr(self, field), field)
+        paise(self.amount_paise)
+        if self.amount_paise <= 0:
+            raise FinanceEventError("INVALID_MONEY", "TDS amount must be positive")
+        for field in ("payer_pan_hash", "merchant_pan_hash"):
+            value = getattr(self, field)
+            if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+                raise FinanceEventError("INVALID_HASH", f"{field} must be a SHA-256 hex digest")
+        if re.fullmatch(r"[A-Z0-9]+:[A-Z0-9:_-]+@[0-9]{4}-[0-9]{2}-[0-9]{2}",
+                        self.tax_rule_id) is None:
+            raise FinanceEventError(
+                "INVALID_RULE_ID", "tax_rule_id must include a law, rule and effective date"
+            )
+        effective = _date(self.tax_rule_id.rsplit("@", 1)[1], "tax_rule_id effective date")
+        occurred = _date(self.occurred_at, "occurred_at")
+        if effective > occurred:
+            raise FinanceEventError(
+                "RULE_NOT_EFFECTIVE", "tax rule cannot take effect after the withholding"
+            )
+
+
+FinanceEvent: TypeAlias = Refund | Dispute | Adjustment | Settlement | LedgerEntry | TdsEvidence
 
 
 _SCHEMAS: dict[str, tuple[type[FinanceEvent], tuple[str, ...]]] = {
@@ -162,6 +204,10 @@ _SCHEMAS: dict[str, tuple[type[FinanceEvent], tuple[str, ...]]] = {
     "adjustment": (Adjustment, ("adjustment_id", "settlement_id", "amount_paise", "kind", "created_at")),
     "settlement": (Settlement, ("settlement_id", "amount_paise", "settled_at", "utr", "status")),
     "ledger_entry": (LedgerEntry, ("entry_id", "ledger_event_type", "source_ref", "amount_paise", "direction", "occurred_at")),
+    "tds_evidence": (TdsEvidence, (
+        "evidence_id", "order_id", "amount_paise", "payer_pan_hash",
+        "merchant_pan_hash", "tax_rule_id", "certificate_ref", "occurred_at",
+    )),
 }
 
 
@@ -194,6 +240,7 @@ def encode_finance_event(event: FinanceEvent) -> dict[str, object]:
     kinds = {
         Refund: "refund", Dispute: "dispute", Adjustment: "adjustment",
         Settlement: "settlement", LedgerEntry: "ledger_entry",
+        TdsEvidence: "tds_evidence",
     }
     row = asdict(event)
     kind = kinds[type(event)]
