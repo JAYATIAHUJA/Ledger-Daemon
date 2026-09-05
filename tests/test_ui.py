@@ -24,11 +24,17 @@ def world(tmp_path_factory):
     orders, captures, bank, truth = load_batch(str(d))
     result = reconcile(orders, captures, bank, q_hat=0.001)
     _ld, decisions = run_ledger_daemon(orders, result)
-    return orders, result, decisions, truth
+    return orders, result, decisions, truth, captures, bank
+
+
+def world_with_feeds(world):
+    """The shared world unpacked the way the dashboard panels need it."""
+    orders, result, decisions, _truth, captures, bank = world
+    return orders, captures, bank, result, decisions
 
 
 def test_every_order_lands_in_exactly_one_place(world):
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     v = build_view(orders, result.verdicts, decisions, {})
     shown = [r.order_id for r in v.safe + v.blocked + v.needs_you]
     assert len(shown) == len(set(shown)), "an order appeared in two columns"
@@ -36,7 +42,7 @@ def test_every_order_lands_in_exactly_one_place(world):
 
 
 def test_safe_column_is_exactly_the_allow_set(world):
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     v = build_view(orders, result.verdicts, decisions, {})
     assert {r.order_id for r in v.safe} == \
         {oid for oid, d in decisions.items() if d.outcome == policy.ALLOW}
@@ -44,7 +50,7 @@ def test_safe_column_is_exactly_the_allow_set(world):
 
 def test_hidden_rows_are_only_clean_agreements(world):
     """Hiding is honesty, not concealment: only books-say-paid, bank-agrees rows."""
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     v = build_view(orders, result.verdicts, decisions, {})
     visible = {r.order_id for r in v.safe + v.blocked + v.needs_you}
     by_id = {o.order_id: o for o in orders}
@@ -56,7 +62,7 @@ def test_hidden_rows_are_only_clean_agreements(world):
 
 
 def test_a_resolution_moves_the_row_and_only_that_row(world):
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     v0 = build_view(orders, result.verdicts, decisions, {})
     assert v0.needs_you, "world must produce at least one HOLD"
     target = v0.needs_you[0].order_id
@@ -88,7 +94,7 @@ def test_load_resolutions_tolerates_a_missing_db(tmp_path):
 # --------------------------- exception cases -------------------------------- #
 
 def test_held_rows_carry_the_case_they_belong_to(world, tmp_path):
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     store = CaseStore(str(tmp_path / "ledger.sqlite3"))
     open_exception_cases(store, result.verdicts, decisions)
     cases = {c.order_id: c for c in store.list_cases()}
@@ -102,7 +108,7 @@ def test_held_rows_carry_the_case_they_belong_to(world, tmp_path):
 
 
 def test_a_row_without_a_case_offers_no_resolution_buttons(world):
-    orders, result, decisions, _ = world
+    orders, result, decisions, _, _captures, _bank = world
     v = build_view(orders, result.verdicts, decisions, {})
     assert v.needs_you and all(row.case_id == "" for row in v.needs_you)
     assert "acts" not in _rows_html(v.needs_you, True)
@@ -140,3 +146,89 @@ def test_resolution_refuses_a_verdict_it_does_not_understand(tmp_path):
     with pytest.raises(ValueError):
         resolve_case(store, case, 1, "maybe")
     assert store.get(case.case_id).version == 1
+
+
+# --------------------------- the operations dashboard (F10) ----------------- #
+
+def test_panels_gather_source_health_proofs_and_cases(world, tmp_path):
+    import os
+
+    from ledger_daemon.cases import CaseStore, open_exception_cases
+    from ledger_daemon.certificates import recon_config_hash, write_proof_bundle
+    from ledger_daemon.executor import Executor, MockRazorpayAdapter
+    from ledger_daemon.proof_tree import load_certificates
+    from ledger_daemon.recon import FULL
+    from ledger_daemon.ui import build_panels
+
+    orders, captures, bank, result, decisions = world_with_feeds(world)
+    proofs = str(tmp_path / "proofs")
+    write_proof_bundle(proofs, orders, captures, bank, result.verdicts,
+                       config_hash=recon_config_hash(FULL), calibration_id="cal-x")
+    execu = Executor(str(tmp_path / "l.sqlite3"), adapter=MockRazorpayAdapter())
+    store = CaseStore(execu.db_path)
+    open_exception_cases(store, result.verdicts, decisions)
+    state = {"resolutions": {}, "cases": {c.order_id: c for c in store.list_cases()},
+             "certificates": load_certificates(proofs)}
+
+    panels = build_panels(orders, result.verdicts, decisions, execu, store, state,
+                          captures=captures, bank=bank,
+                          config_hash=recon_config_hash(FULL), calibration_id="cal-x")
+
+    assert panels.source.feeds_seen == 3
+    assert panels.source.accepted == panels.source.rows_offered
+    assert panels.proofs.built == len(orders)
+    assert panels.proofs.rejected == 0
+    assert panels.proofs.unverified == 0
+    assert panels.signoff is not None
+    assert sum(panels.verdict_counts.values()) == len(orders)
+    assert sum(panels.automation[k] for k in ("exact", "probabilistic", "manual")) == len(orders)
+    assert os.path.isdir(proofs)
+
+
+def test_a_batch_with_no_bundle_blocks_signoff_rather_than_signing_blind(world, tmp_path):
+    from ledger_daemon.cases import CaseStore
+    from ledger_daemon.executor import Executor, MockRazorpayAdapter
+    from ledger_daemon.signoff import SignoffStatus
+    from ledger_daemon.ui import build_panels
+
+    orders, captures, bank, result, decisions = world_with_feeds(world)
+    execu = Executor(str(tmp_path / "l.sqlite3"), adapter=MockRazorpayAdapter())
+    store = CaseStore(execu.db_path)
+    state = {"resolutions": {}, "cases": {}, "certificates": {}}
+
+    panels = build_panels(orders, result.verdicts, decisions, execu, store, state,
+                          captures=captures, bank=bank)
+
+    assert panels.signoff.status is SignoffStatus.DO_NOT_SIGN
+    assert "PROOF_COVERAGE_INCOMPLETE" in panels.signoff.blockers
+    assert any("no proof bundle" in note.lower() for note in panels.notes)
+
+
+def test_every_panel_renders_and_the_close_view_needs_no_javascript(world):
+    from ledger_daemon.panels import Panels
+    from ledger_daemon.ui import build_view, render_html
+
+    orders, _captures, _bank, result, decisions = world_with_feeds(world)
+    view = build_view(orders, result.verdicts, decisions, {})
+    html = render_html(view, "test source", Panels())
+
+    for panel in ("close", "chase", "sources", "proofs", "cases", "risk", "run",
+                  "evaluation", "audit", "recovery"):
+        assert f'data-panel="{panel}"' in html
+    # the landing panel is served visible, so a page without script still reads
+    assert '<section class="panel" data-panel="close">' in html
+    assert '<section class="panel" data-panel="chase" hidden>' in html
+    assert "Downstream Control Demonstration: Why Correct Reconciliation Matters" in html
+    assert "Track 03" not in html
+
+
+def test_recovery_is_framed_as_a_demonstration_not_a_product(world):
+    from ledger_daemon.panels import recovery_demo
+    from ledger_daemon.ui import build_view
+
+    orders, _captures, _bank, result, decisions = world_with_feeds(world)
+    view = build_view(orders, result.verdicts, decisions, {})
+    numbers = recovery_demo(view)
+    assert numbers["blocked"] >= 0
+    assert numbers["protected_paise"] == view.total(view.blocked)
+    assert type(numbers["protected_paise"]) is int

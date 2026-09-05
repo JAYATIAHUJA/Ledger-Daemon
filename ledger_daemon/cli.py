@@ -161,29 +161,69 @@ def cmd_import_statement(args) -> int:
 
 
 def cmd_ui(args) -> int:
+    from .certificates import (
+        batch_root, calibration_identity, recon_config_hash, source_hash_map, source_rows,
+    )
+    from .panels import StageRow
     from .ui import serve
+
     p = _paths(args.out)
+    stages: list[StageRow] = []
+    calibration_id = ""
+    evaluation = ""
+
+    def timed(name: str, detail: str, fn):
+        started = time.perf_counter()
+        value = fn()
+        stages.append(StageRow(name, detail, int((time.perf_counter() - started) * 1000)))
+        return value
+
     if args.dir:
-        orders, captures, bank, _truth = load_batch(args.dir)
-        result = reconcile(orders, captures, bank, q_hat=0.001)
+        orders, captures, bank, truth = timed(
+            "load", f"batch {os.path.abspath(args.dir)}", lambda: load_batch(args.dir))
+        result = timed("reconcile", "deterministic, zero LLM",
+                       lambda: reconcile(orders, captures, bank, q_hat=0.001))
         source = f"live batch: {os.path.abspath(args.dir)}"
     else:
         assert_disjoint_seeds(args.seed + CAL_SEED_OFFSET, args.seed)
-        generate(args.seed + CAL_SEED_OFFSET, args.n, p["cal_batch"])
-        cal = load_batch(p["cal_batch"])
+        cal = timed("calibrate", f"seed {args.seed + CAL_SEED_OFFSET}, n={args.n}",
+                    lambda: (generate(args.seed + CAL_SEED_OFFSET, args.n, p["cal_batch"]),
+                             load_batch(p["cal_batch"]))[1])
         q_hat, fs_model, _probs = calibrate(cal[0], cal[1], cal[2], cal[3])
-        generate(args.seed, args.n, p["eval_batch"])
-        orders, captures, bank, _truth = load_batch(p["eval_batch"])
-        result = reconcile(orders, captures, bank, q_hat=q_hat, fs_model=fs_model)
+        calibration_id = calibration_identity(
+            q_hat, batch_root(source_hash_map(source_rows(cal[0], cal[1], cal[2]))))
+        orders, captures, bank, truth = timed(
+            "generate", f"seed {args.seed}, n={args.n}",
+            lambda: (generate(args.seed, args.n, p["eval_batch"]),
+                     load_batch(p["eval_batch"]))[1])
+        result = timed("reconcile", f"q_hat {q_hat:.4f}, four passes",
+                       lambda: reconcile(orders, captures, bank, q_hat=q_hat,
+                                         fs_model=fs_model))
         source = f"synthetic world, seed {args.seed}, n={args.n}"
-    _ld, decisions = run_ledger_daemon(orders, result)
+        # Issue the bundle this screen will render. Without it the proof panel
+        # has nothing to show and the controller cannot sign anything -- which
+        # is correct, but only useful once there is a bundle to fail against.
+        from .certificates import write_proof_bundle
+        timed("prove", "one certificate per order",
+              lambda: write_proof_bundle(
+                  p["proofs"], orders, captures, bank, result.verdicts,
+                  config_hash=recon_config_hash(FULL),
+                  calibration_id=calibration_id))
+        if truth:
+            evaluation = render_report(evaluate(args.seed, orders, captures, result, truth))
+
+    _ld, decisions = timed("policy", "R1-R7, first DENY or HOLD wins",
+                           lambda: run_ledger_daemon(orders, result))
     execu = Executor(p["db"], adapter=default_adapter(), drafts_dir=p["drafts"])
     # Only the demo batch owns the issued bundle. A proof from a different
     # batch would render against the wrong rows -- the precise confusion this
     # system exists to prevent -- so a live --dir run shows no proofs at all.
     serve(orders, result.verdicts, decisions, execu, source,
           port=args.port, open_browser=not args.no_browser,
-          proofs_dir="" if args.dir else p["proofs"])
+          proofs_dir="" if args.dir else p["proofs"],
+          captures=captures, bank=bank, evaluation=evaluation,
+          config_hash=recon_config_hash(FULL),
+          calibration_id=calibration_id, stages=stages)
     return 0
 
 
@@ -481,6 +521,42 @@ def cmd_bench_readers(args) -> int:
     return 0
 
 
+def cmd_judge(args) -> int:
+    """The one command an evaluator runs. Attacks the system, grades the result.
+
+    Exits nonzero when a hard invariant fails, and writes the report either way:
+    a harness that hides its own failure is worth less than no harness.
+    """
+    from .judge import run_judge
+
+    print(f"judging seed={args.seed} n={args.n} -> {os.path.abspath(args.out)}")
+    report = run_judge(args.seed, args.n, args.out)
+
+    print()
+    print(f"{'profile':<20}{'rows':>7}{'recon':>7}{'exc':>6}{'quar':>6}"
+          f"{'DCPR':>8}{'false-hold':>12}{'wrong paise':>13}{'authority':>20}")
+    for profile in report.profiles:
+        print(f"{profile.profile:<20}{profile.processed:>7}{profile.reconciled:>7}"
+              f"{profile.exceptions:>6}{profile.quarantined:>6}"
+              f"{profile.dcpr_ppm / 10_000:>7.1f}%{profile.false_hold_ppm / 10_000:>11.1f}%"
+              f"{profile.wrongly_chased_paise:>13}{profile.authority:>20}")
+
+    print()
+    print(f"attacks meeting their oracle ... {report.attacks_passed}/{report.attacks_run}")
+    print(f"certificates verified .......... {report.proofs_verified} "
+          f"({report.proofs_rejected} rejected)")
+    print(f"duplicate side effects ......... {report.duplicate_side_effects}")
+    print()
+    for invariant in report.invariants:
+        print(f"  [{'ok' if invariant.held else 'FAIL'}] {invariant.name}: {invariant.detail}")
+
+    print()
+    print(f"fingerprint {report.fingerprint[:16]}  wall {report.elapsed_s:.1f}s")
+    print(f"artifacts: summary.json, cases.jsonl, attacks.json, latency.json, "
+          f"proof-manifest.json, claims.md -> {os.path.abspath(args.out)}")
+    return 0 if report.ok else 1
+
+
 def cmd_crosscheck(args) -> int:
     from .crosscheck import run_crosscheck
     p = _paths(args.out)
@@ -727,6 +803,13 @@ def main(argv=None) -> int:
     ae.add_argument("--out", default="out")
     ae.add_argument("--profile", choices=["clean", "stress"], default="clean")
     ae.set_defaults(fn=cmd_agent_eval)
+
+    jd = sub.add_parser("judge",
+                        help="one offline command: attack every profile and publish the evidence")
+    jd.add_argument("--seed", type=int, default=42)
+    jd.add_argument("--n", type=int, default=500)
+    jd.add_argument("--out", default="out/judge")
+    jd.set_defaults(fn=cmd_judge)
 
     br = sub.add_parser("bench-readers",
                         help="score the typed evidence readers on the labelled span benchmark")
