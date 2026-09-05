@@ -16,8 +16,9 @@ never touch money. Every verdict carries evidence_refs (FR-2.8).
 from __future__ import annotations
 
 import itertools
+import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from . import conformal as cf
 from .fs import FSModel, _day_delta, p_match
@@ -34,7 +35,7 @@ COST_WRONG_CHASE_PAISE = 800_00       # relationship + support-ticket cost per w
 RECOVERY_RATE_NUM, RECOVERY_RATE_DEN = 6, 10   # 0.6 x amount recoverable, integer ratio
 
 
-@dataclass
+@dataclass(frozen=True)
 class ReconConfig:
     """Ablation switches. Defaults = the full system. Each flag removes exactly
     one idea so the ablation table can show every component earning its place."""
@@ -48,6 +49,36 @@ class ReconConfig:
     # which is not the same as "authorized" -- policy treats an unstated
     # authority as unrevoked, and drift-demo/cli always states it.
     authority: AuthorityState | None = None
+    # Data-only learned rule identities.  Copy-on-write activation preserves
+    # the hash of every previously issued configuration and certificate.
+    active_rule_versions: tuple[str, ...] = field(default=(), init=False)
+
+    def __post_init__(self) -> None:
+        identities = self.active_rule_versions
+        if not isinstance(identities, tuple):
+            raise TypeError("active rule versions must be an immutable tuple")
+        if tuple(sorted(set(identities))) != identities:
+            raise ValueError("active rule versions must be unique and canonically sorted")
+        identity_pattern = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}@v[1-9][0-9]*")
+        if any(not isinstance(value, str) or identity_pattern.fullmatch(value) is None
+               for value in identities):
+            raise ValueError("invalid active rule identity")
+
+
+def with_active_rule(config: "ReconConfig", receipt: object,
+                     store: object) -> "ReconConfig":
+    """Bind a store-verified activation receipt into a copied config."""
+    from .rules import RuleStore
+
+    if not isinstance(config, ReconConfig):
+        raise TypeError("activation requires a ReconConfig")
+    if not isinstance(store, RuleStore):
+        raise TypeError("activation requires the issuing RuleStore")
+    active = store.validate_activation(receipt)
+    identities = tuple(sorted(set(config.active_rule_versions + (active.identity,))))
+    updated = replace(config)
+    object.__setattr__(updated, "active_rule_versions", identities)
+    return updated
 
 
 FULL = ReconConfig()

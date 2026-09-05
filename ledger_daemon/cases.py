@@ -29,10 +29,13 @@ by state without replaying every case.
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
+from types import MappingProxyType
+from typing import Mapping
 
 from .executor import connect
 
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS case_events (
     actor         TEXT NOT NULL,
     evidence_refs TEXT NOT NULL,
     at            TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
     UNIQUE (case_id, seq)
 );
 CREATE INDEX IF NOT EXISTS cases_by_order ON cases (order_id);
@@ -149,6 +153,27 @@ class CaseEvent:
     actor: str
     evidence_refs: tuple[str, ...]
     at: str
+    metadata: Mapping[str, object] = MappingProxyType({})
+
+
+class AuthenticatedCaseEvents(list[CaseEvent]):
+    """A case-event snapshot that can be checked against its issuing store."""
+
+    def __init__(self, events: list[CaseEvent], *, db_path: str, case_id: str,
+                 certificate_id: str, content_hash: str):
+        super().__init__(events)
+        self.db_path = db_path
+        self.case_id = case_id
+        self.certificate_id = certificate_id
+        self.content_hash = content_hash
+
+    def verify(self) -> bool:
+        current = CaseStore(self.db_path).events(self.case_id)
+        return (
+            current.content_hash == self.content_hash
+            and current.certificate_id == self.certificate_id
+            and list(current) == list(self)
+        )
 
 
 class CaseError(Exception):
@@ -227,6 +252,14 @@ class CaseStore:
         conn = connect(db_path)
         try:
             conn.executescript(SCHEMA)
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(case_events)").fetchall()
+            }
+            if "metadata_json" not in columns:
+                conn.execute(
+                    "ALTER TABLE case_events ADD COLUMN metadata_json "
+                    "TEXT NOT NULL DEFAULT '{}'"
+                )
             conn.commit()
         finally:
             conn.close()
@@ -273,7 +306,10 @@ class CaseStore:
 
     def advance(self, case_id: str, expected_version: int,
                 path: tuple[CaseState, ...], actor: str,
-                evidence_refs: tuple[str, ...] = ()) -> ReconciliationCase:
+                evidence_refs: tuple[str, ...] = (),
+                event_metadata: Mapping[str, object] | None = None,
+                authority_use: tuple[object, object, object, str, int] | None = None,
+                ) -> ReconciliationCase:
         """Apply a whole path of declared hops, or none of it.
 
         The workbench resolves a held order in one click, but the case must
@@ -283,6 +319,12 @@ class CaseStore:
         if not actor:
             raise ValueError("every transition must name an actor")
         refs = tuple(evidence_refs)
+        metadata = dict(event_metadata or {})
+        try:
+            metadata_json = json.dumps(
+                metadata, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("case event metadata must be JSON data") from exc
         conn = connect(self.db_path)
         try:
             conn.execute("BEGIN IMMEDIATE")
@@ -295,13 +337,23 @@ class CaseStore:
                 conn.commit()
                 return case
 
+            if authority_use is not None:
+                registry, authority, action, subject_id, subject_version = authority_use
+                human = registry._verify_and_consume(
+                    conn, authority, action, subject_id, subject_version)
+                if human != actor:
+                    raise ValueError("case actor does not match human authority")
+
             state, version = case.state, case.version
             now = _now()
-            for target in path:
+            for index, target in enumerate(path):
                 if target not in LEGAL_TRANSITIONS[state]:
                     raise IllegalTransition(case_id, state, target)
                 version += 1
-                self._append_event(conn, case_id, version, state, target, actor, refs, now)
+                self._append_event(
+                    conn, case_id, version, state, target, actor, refs, now,
+                    metadata_json if index == len(path) - 1 else "{}",
+                )
                 state = target
             conn.execute(
                 "UPDATE cases SET state = ?, version = ?, updated_at = ? WHERE case_id = ?",
@@ -310,7 +362,7 @@ class CaseStore:
             return ReconciliationCase(case.case_id, case.order_id, case.reason_code,
                                       case.certificate_id, state, version,
                                       case.opened_at, now)
-        except CaseError:
+        except Exception:
             conn.rollback()
             raise
         finally:
@@ -319,11 +371,14 @@ class CaseStore:
     @staticmethod
     def _append_event(conn: sqlite3.Connection, case_id: str, seq: int,
                       from_state: CaseState, to_state: CaseState, actor: str,
-                      evidence_refs: tuple[str, ...], at: str) -> None:
+                      evidence_refs: tuple[str, ...], at: str,
+                      metadata_json: str = "{}") -> None:
         conn.execute(
-            "INSERT INTO case_events VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO case_events "
+            "(event_id,case_id,seq,from_state,to_state,actor,evidence_refs,at,metadata_json) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
             (_event_id(case_id, seq), case_id, seq, from_state.value, to_state.value,
-             actor, "\n".join(evidence_refs), at))
+             actor, "\n".join(evidence_refs), at, metadata_json))
 
     # ------------------------------ reads --------------------------------- #
 
@@ -372,19 +427,55 @@ class CaseStore:
             conn.close()
         return [self._row_to_case(row) for row in rows]
 
-    def events(self, case_id: str) -> list[CaseEvent]:
+    @staticmethod
+    def _events_hash(case: ReconciliationCase, events: list[CaseEvent]) -> str:
+        payload = {
+            "case": {
+                "case_id": case.case_id,
+                "certificate_id": case.certificate_id,
+                "order_id": case.order_id,
+                "reason_code": case.reason_code,
+                "state": case.state.value,
+                "version": case.version,
+            },
+            "events": [{
+                "actor": event.actor,
+                "case_id": event.case_id,
+                "event_id": event.event_id,
+                "evidence_refs": list(event.evidence_refs),
+                "from_state": event.from_state.value,
+                "metadata": dict(event.metadata),
+                "seq": event.seq,
+                "to_state": event.to_state.value,
+            } for event in events],
+            "schema_version": "authenticated-case-events-v1",
+        }
+        encoded = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    def events(self, case_id: str) -> AuthenticatedCaseEvents:
         conn = connect(self.db_path)
         try:
             rows = conn.execute(
                 "SELECT * FROM case_events WHERE case_id = ? ORDER BY seq", (case_id,)
             ).fetchall()
+            case = self._read(conn, case_id)
         finally:
             conn.close()
-        return [
+        if case is None:
+            raise UnknownCase(case_id)
+        events = [
             CaseEvent(row[0], row[1], row[2], CaseState(row[3]), CaseState(row[4]),
-                      row[5], tuple(row[6].split("\n")) if row[6] else (), row[7])
+                      row[5], tuple(row[6].split("\n")) if row[6] else (), row[7],
+                      MappingProxyType(json.loads(row[8]) if len(row) > 8 else {}))
             for row in rows
         ]
+        return AuthenticatedCaseEvents(
+            events, db_path=self.db_path, case_id=case_id,
+            certificate_id=case.certificate_id,
+            content_hash=self._events_hash(case, events),
+        )
 
 
 # --------------------------- pipeline integration --------------------------- #

@@ -157,7 +157,11 @@ def save_resolution(execu: Executor, order_id: str, resolution: str) -> bool:
 
 
 def resolve_case(store: CaseStore, case: ReconciliationCase, expected_version: int,
-                 resolution: str, actor: str = "human") -> ReconciliationCase:
+                 resolution: str, actor: str = "human", *,
+                 authority: object | None = None,
+                 registry: object | None = None,
+                 rule_suggestion: dict[str, object] | None = None,
+                 evidence_registry: object | None = None) -> ReconciliationCase:
     """Walk the exception case to RESOLVED, one declared hop at a time.
 
     The click is one gesture but the case still records the whole route --
@@ -167,10 +171,91 @@ def resolve_case(store: CaseStore, case: ReconciliationCase, expected_version: i
     """
     if resolution not in ("paid", "unpaid"):
         raise ValueError(f"resolution must be paid|unpaid, got {resolution!r}")
+    from .rules import (
+        AnalystRegistry, EvidenceRegistry, HumanAction, HumanAuthority,
+        RuleFamily, _validate_parameters,
+    )
+
+    trusted = authority is not None or registry is not None
+    if trusted:
+        if not isinstance(registry, AnalystRegistry):
+            raise ValueError("store-backed analyst registry is required")
+        if registry.db_path != store.db_path:
+            raise ValueError("analyst registry must share the case store")
+        actor = registry.verify(
+            authority, HumanAction.RESOLVE,
+            subject_id=case.case_id, subject_version=expected_version,
+        )
+    elif rule_suggestion is not None:
+        raise ValueError("store-issued human authority is required for rule learning")
+
+    suggestion = dict(rule_suggestion) if rule_suggestion is not None else None
+    evidence_assertion = None
+    if suggestion is not None:
+        if not isinstance(evidence_registry, EvidenceRegistry):
+            raise ValueError("verified evidence registry is required for rule learning")
+        if evidence_registry.db_path != store.db_path:
+            raise ValueError("evidence registry must share the case store")
+        if set(suggestion) != {"family", "parameters"}:
+            raise ValueError("invalid rule suggestion schema")
+        family = RuleFamily(suggestion["family"])
+        parameters = _validate_parameters(family, suggestion["parameters"])
+        evidence_assertion = evidence_registry.assertion(
+            case.certificate_id, family, parameters)
+    metadata = {
+        "authority": authority.to_dict() if isinstance(authority, HumanAuthority) else None,
+        "certificate_id": case.certificate_id,
+        "evidence_assertion": evidence_assertion,
+        "origin": "human" if trusted else "untrusted",
+        "resolution": resolution,
+        "rule_suggestion": suggestion,
+        "verified": trusted,
+    }
     return store.advance(
         case.case_id, expected_version,
         path_to(case.state, CaseState.RESOLVED), actor,
-        evidence_refs=(f"human-resolution:{resolution}",))
+        evidence_refs=(f"human-resolution:{resolution}",),
+        event_metadata=metadata,
+        authority_use=(registry, authority, HumanAction.RESOLVE,
+                       case.case_id, expected_version) if trusted else None)
+
+
+def rule_proposal_state(rule: object) -> dict[str, object]:
+    """Bounded rule lifecycle data for the analyst workbench."""
+    from .rules import RuleProposal
+
+    if not isinstance(rule, RuleProposal):
+        raise TypeError("rule state requires a RuleProposal")
+    return {
+        "rule_id": rule.rule_id,
+        "family": rule.family.value,
+        "status": rule.status.value,
+        "version": rule.version,
+        "author": rule.author,
+        "approver": rule.approver,
+        "activated_by": rule.activated_by,
+        "activation_time": rule.activation_time,
+    }
+
+
+def approve_rule_proposal(store: object, rule_id: str, expected_version: int,
+                          authority: object) -> object:
+    """Human-only approval helper; the store enforces replay and version gates."""
+    from .rules import RuleStore
+
+    if not isinstance(store, RuleStore):
+        raise TypeError("approval requires a RuleStore")
+    return store.approve(rule_id, expected_version, authority)
+
+
+def activate_rule_proposal(store: object, rule_id: str, expected_version: int,
+                           authority: object, activation_time: str) -> object:
+    """Activate only an approved exact version; no UI bypass exists."""
+    from .rules import RuleStore
+
+    if not isinstance(store, RuleStore):
+        raise TypeError("activation requires a RuleStore")
+    return store.activate(rule_id, expected_version, authority, activation_time)
 
 
 # --------------------------- rendering -------------------------------------- #
