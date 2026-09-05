@@ -2,7 +2,7 @@
 
 **Ledger Daemon tells a finance team which orders are paid, unpaid, or need review before anyone follows up.** It compares merchant orders, Razorpay payments, and bank deposits; keeps the records behind each result; and holds uncertain cases for a person. The point is simple: do not chase a customer who has already paid.
 
-[**Try the website**](//jayatiahuja.github.io/razorpay-hack/) · [**Open the full sample controller**](//jayatiahuja.github.io/razorpay-hack/demo.html)
+[**Try the website**](https://jayatiahuja.github.io/Ledger-Daemon/) · [**Open the full sample controller**](https://jayatiahuja.github.io/Ledger-Daemon/demo.html)
 
 The website is a saved synthetic sample. The local app processes a fresh synthetic batch or a supplied three-file batch and records reviews locally.
 
@@ -14,8 +14,8 @@ Razorpay AI Buildathon 2026 · **Track 04, AI Finance Controller**. Recovery is 
 
 ## The 60-second judge path
 
-1. Open [**Try the website**](//jayatiahuja.github.io/razorpay-hack/), click **Try the sample demo**, and inspect a result proof or change one paise in its temporary copy.
-2. Open the [**full sample controller**](//jayatiahuja.github.io/razorpay-hack/demo.html) and visit **Sources**, **Chase list**, **Exceptions**, and **Evaluation**. This is a saved sample, so it does not write anything.
+1. Open [**Try the website**](https://jayatiahuja.github.io/Ledger-Daemon/), click **Try the sample demo**, and inspect a result proof or change one paise in its temporary copy.
+2. Open the [**full sample controller**](https://jayatiahuja.github.io/Ledger-Daemon/demo.html) and visit **Sources**, **Chase list**, **Exceptions**, and **Evaluation**. This is a saved sample, so it does not write anything.
 3. In a terminal, run the judge command below. It generates the evidence itself, tries declared failure cases, checks proofs independently, and exits nonzero if a safety invariant fails.
 
 ```bash

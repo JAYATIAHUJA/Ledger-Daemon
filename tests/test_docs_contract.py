@@ -39,6 +39,9 @@ JUDGE_COMMAND = "python -m ledger_daemon judge --seed 42 --n 500 --out out/judge
 URL_ALLOWLIST = {
     # the independent Fellegi-Sunter engine the matcher is cross-checked against
     "https://github.com/moj-analytical-services/splink",
+    # the project's public GitHub Pages landing page and saved controller
+    "https://jayatiahuja.github.io/Ledger-Daemon/",
+    "https://jayatiahuja.github.io/Ledger-Daemon/demo.html",
 }
 
 _URL = re.compile(r"https?://[^\s)\]\"'>]+")
